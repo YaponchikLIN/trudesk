@@ -200,6 +200,30 @@ api.tSortings.tSortingUpdated = (payload) => {
   });
 };
 
+api.blacklist = {};
+api.blacklist.fetch = (payload) => {
+  console.log('blacklist');
+  const limit = payload.limit;
+  const skip = payload.skip;
+  const excludedIds = payload.excludedIds;
+  const data = { excludedIds };
+  return axios.post(`/api/v2/blacklist?limit=${limit}&skip=${skip}`, data).then((res) => {
+    return res.data;
+  });
+};
+
+api.blacklist.update = (payload) => {
+  return axios.put('/api/v2/blacklist', payload).then((res) => {
+    return res.data;
+  });
+};
+
+api.blacklist.add = (payload) => {
+  return axios.post('/api/v2/blacklist', payload).then((res) => {
+    return res.data;
+  });
+};
+
 api.accounts = {};
 
 api.accounts.create = (payload) => {

@@ -112,6 +112,12 @@ div#accountsTable_wrapper
   border-left: 10px solid transparent
   background-clip: padding-box !important //Fix for firefox not showing borders
 
+.tableRowHover:hover .spanBackHand 
+  
+
+.spanBackHand 
+ 
+
 .floating-ticket-status
   position: absolute
   top: 22px
@@ -232,6 +238,20 @@ div#accountsTable_wrapper
   padding-left: 30px
   padding-top: 30px
   margin-bottom: 30px
+  &.tru-card
+    background: white
+    padding: 5px 15px 15px
+    +borderRadius(3px)
+    margin: 30px
+  h4
+    font-family: $fontFamily
+    font-size: 14px
+    color: darken($text_color, 10%)
+    margin-bottom: 10px
+
+.ticket-assignee-wrap-list,
+.tag-info-wrap
+  padding-left: 40px
   &.tru-card
     background: white
     padding: 5px 15px 15px

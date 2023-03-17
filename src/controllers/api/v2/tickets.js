@@ -104,63 +104,6 @@ ticketsV2.get = async (req, res) => {
       queryObject.direction = direction;
       tickets = await Models.Ticket.getTicketsWithObject(mappedGroups, queryObject);
       totalCount = await Models.Ticket.getCountWithObject(mappedGroups, queryObject);
-      // switch (sorting) {
-      //   case 'requester':
-      //     if (direction == 'topDown') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1.owner?.fullname < ticket2.owner?.fullname ? 1 : -1;
-      //       });
-      //     } else if (direction == 'bottomUp') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1.owner?.fullname > ticket2.owner?.fullname ? 1 : -1;
-      //       });
-      //     }
-      //     break;
-      //   case 'customer':
-      //     if (direction == 'topDown') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1.group.name < ticket2.group.name ? 1 : -1;
-      //       });
-      //     } else if (direction == 'bottomUp') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1.group.name > ticket2.group.name ? 1 : -1;
-      //       });
-      //     }
-      //     break;
-      //   case 'assignee':
-      //     if (direction == 'topDown') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1?.assignee?.fullname < ticket2?.assignee?.fullname ? 1 : -1;
-      //       });
-      //     } else if (direction == 'bottomUp') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1?.assignee?.fullname > ticket2?.assignee?.fullname ? 1 : -1;
-      //       });
-      //     }
-      //     break;
-      //   case 'created':
-      //     if (direction == 'topDown') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1?.date < ticket2?.date ? 1 : -1;
-      //       });
-      //     } else if (direction == 'bottomUp') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1?.date > ticket2?.date ? 1 : -1;
-      //       });
-      //     }
-      //     break;
-      //   default:
-      //     if (direction == 'topDown') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1[sorting] < ticket2[sorting] ? 1 : -1;
-      //       });
-      //     } else if (direction == 'bottomUp') {
-      //       tickets.sort((ticket1, ticket2) => {
-      //         return ticket1[sorting] > ticket2[sorting] ? 1 : -1;
-      //       });
-      //     }
-      //     break;
-      // }
     } else {
       tickets = await Models.Ticket.getTicketsWithObject(mappedGroups, queryObject);
       totalCount = await Models.Ticket.getCountWithObject(mappedGroups, queryObject);
@@ -241,7 +184,7 @@ ticketsV2.batchUpdate = function (req, res) {
       Models.Ticket.getTicketById(batchTicket.id, function (err, ticket) {
         if (err) return next(err);
 
-        if (!_.isUndefined(batchTicket.status)) {
+        if (!_.isUndefined(batchTicket.status) && ticket) {
           ticket.status = batchTicket.status;
           const HistoryItem = {
             action: 'ticket:set:status',
@@ -250,9 +193,9 @@ ticketsV2.batchUpdate = function (req, res) {
           };
 
           ticket.history.push(HistoryItem);
-        }
 
-        return ticket.save(next);
+          return ticket.save(next);
+        }
       });
     },
     function (err) {

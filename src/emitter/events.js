@@ -21,6 +21,8 @@ const eventTicketCreated = require('./events/event_ticket_created');
 const eventUserCreated = require('./events/event_user_created');
 const eventTicketAssigneChanged = require('./events/event_ticket_assignee_changed');
 const eventTicketCommentAdded = require('./events/event_ticket_comment_added');
+const eventTicketWarning = require('./events/event_ticket_warning');
+const eventNewPassword = require('./events/event_new_password');
 
 (function () {
   notifications.init(emitter);
@@ -29,12 +31,20 @@ const eventTicketCommentAdded = require('./events/event_ticket_comment_added');
     await eventTicketCreated(data);
   });
 
+  emitter.on('ticket:warning', async function (ticket, comment, hostname) {
+    await eventTicketWarning(ticket);
+  });
+
   emitter.on('ticket:assignee:changed', async function (data) {
     await eventTicketAssigneChanged(data);
   });
 
   emitter.on('user:created', async function (data) {
     await eventUserCreated(data);
+  });
+
+  emitter.on('password:new', async function (data) {
+    await eventNewPassword(data);
   });
 
   function sendPushNotification(tpsObj, data) {
@@ -158,6 +168,21 @@ const eventTicketCommentAdded = require('./events/event_ticket_comment_added');
     // Goes to client
     io.sockets.emit('$trudesk:client:tsortings:fetch', data);
     //await eventTicketCommentAdded(ticket,comment,hostname)
+  });
+
+  emitter.on('blacklist:fetch', async function (data) {
+    // Goes to client
+    io.sockets.emit('$trudesk:client:blacklist:fetch', data);
+  });
+
+  emitter.on('blacklist:check', async function (data) {
+    // Goes to client
+    io.sockets.emit('$trudesk:client:blacklist:check', data);
+  });
+
+  emitter.on('blacklist:save', async function (data) {
+    // Goes to client
+    io.sockets.emit('$trudesk:client:blacklist:save', data);
   });
 
   emitter.on('ticket:note:added', function (ticket) {

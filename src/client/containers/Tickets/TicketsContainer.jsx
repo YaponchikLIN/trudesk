@@ -11,7 +11,7 @@
  *  Copyright (c) 2014-2019 Trudesk, Inc. All rights reserved.
  */
 
-import React from 'react';
+import React, { createRef } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
@@ -26,6 +26,7 @@ import { showModal } from 'actions/common';
 import { fetchSettings } from 'actions/settings';
 import { fetchTCMs, tcmUpdated } from 'actions/tcms';
 import { fetchTSortings, tSortingUpdated } from 'actions/tSorting';
+import { TICKETS_ASSIGNEE_SET } from 'serverSocket/socketEventConsts';
 
 import PageTitle from 'components/PageTitle';
 import Table from 'components/Table';
@@ -40,7 +41,7 @@ import Dropdown from 'components/Dropdown';
 import DropdownItem from 'components/Dropdown/DropdownItem';
 import DropdownSeparator from 'components/Dropdown/DropdownSeperator';
 import StatusSelectorList from 'containers/Tickets/StatusSelectorList';
-import SingleSelectStatus from 'components/SingleSelectStatus';
+import RefAssignee from 'containers/Tickets/RefAssignee';
 
 import helpers from 'lib/helpers';
 import anime from 'animejs';
@@ -49,10 +50,15 @@ import SearchResults from 'components/SearchResults';
 
 @observer
 class TicketsContainer extends React.Component {
+  @observable agents = [];
   @observable searchTerm = '';
+  assigneeDropdownPartial = createRef();
   selectedTickets = [];
   constructor(props) {
     super(props);
+    this.state = {
+      pDropDownTicket: '',
+    };
     makeObservable(this);
 
     this.onTicketCommentAdded = this.onTicketCommentAdded.bind(this);
@@ -63,6 +69,7 @@ class TicketsContainer extends React.Component {
     this.onTCMUpdated = this.onTCMUpdated.bind(this);
     this.onTSortingUpdated = this.onTSortingUpdated.bind(this);
     this.onTSortingsFetch = this.onTSortingsFetch.bind(this);
+    this.onUpdateTicketAssignee = this.onUpdateTicketAssignee.bind(this);
   }
 
   componentDidMount() {
@@ -124,6 +131,13 @@ class TicketsContainer extends React.Component {
     this.props.socket.off('$trudesk:client:tsortings:fetch', this.onTSortingsFetch);
     this.props.socket.off('$trudesk:client:ticket:updated', this.onTicketUpdated);
     this.props.socket.off('$trudesk:client:ticket:deleted', this.onTicketDeleted);
+  }
+
+  onUpdateTicketAssignee(data) {
+    if (this.props.ticketId === data.tid) {
+      this.assignee = data.status;
+      if (this.props.onStatusChange) this.props.onStatusChange(this.status);
+    }
   }
 
   onTicketCreated(ticket) {
@@ -311,12 +325,16 @@ class TicketsContainer extends React.Component {
     // }
   }
 
+  pDropDown(ticketId) {
+    this.setState({
+      pDropDownTicket: ticketId,
+    });
+  }
+
   sendNotification(ticket) {
     const siteURL = this.getSetting('siteUrl');
     if (this.getSetting('chatwootSettings')) {
-      axios.get(`/api/v1/users/${ticket.get('owner').get('username')}`).then((response) => {
-        console.log(JSON.stringify(response.data));
-      });
+      axios.get(`/api/v1/users/${ticket.get('owner').get('username')}`).then((response) => {});
     }
   }
   _selectAll() {
@@ -356,6 +374,12 @@ class TicketsContainer extends React.Component {
     this.props.fetchTSortings();
   }
 
+  changeAssignee(ticketId, assignee) {
+    // if (!this.props.hasPerm) return;
+    this.props.socket.emit(TICKETS_ASSIGNEE_SET, { _id: assignee, ticketId: ticketId });
+    //this.forceClose();
+  }
+
   render() {
     const loadingItems = [];
     for (let i = 0; i < 51; i++) {
@@ -370,7 +394,6 @@ class TicketsContainer extends React.Component {
 
       loadingItems.push(<TableRow key={Math.random()}>{cells}</TableRow>);
     }
-
     const selectAllCheckbox = (
       <div style={{ marginLeft: 17 }}>
         <input
@@ -482,8 +505,9 @@ class TicketsContainer extends React.Component {
               <TableHeader sortData={this.sortData} key={5} width={170} text={'Requester'} />,
               <TableHeader sortData={this.sortData} key={6} width={175} text={'Customer'} />,
               <TableHeader sortData={this.sortData} key={7} text={'Assignee'} />,
-              <TableHeader sortData={this.sortData} key={8} width={110} text={'Due Date'} />,
-              <TableHeader sortData={this.sortData} key={9} text={'Updated'} />,
+              <TableHeader sortData={this.sortData} key={8} width={39} />,
+              <TableHeader sortData={this.sortData} key={9} width={110} text={'Due Date'} />,
+              <TableHeader sortData={this.sortData} key={10} text={'Updated'} />,
             ]}
           >
             {/* {!this.props.loading && this.props.tickets.size < 1 && ( */}
@@ -539,6 +563,20 @@ class TicketsContainer extends React.Component {
                   return !a ? '--' : a.get('fullname');
                 };
 
+                const assigneeId = () => {
+                  const a = ticket.get('assignee');
+                  return !a ? '--' : a.get('_id');
+                };
+
+                const onClickTableCell = (e, ticketUID) => {
+                  if (e.target.tagName !== 'SPAN' && e.target.id !== 'assigneeDropdown') {
+                    const td = e.target.closest('td');
+                    const input = td.getElementsByTagName('input');
+                    if (input.length > 0) return false;
+                    History.pushState(null, `Ticket-${ticketUID}`, `/tickets/${ticketUID}`);
+                  }
+                };
+
                 const updated = ticket.get('updated')
                   ? helpers.formatDate(ticket.get('updated'), helpers.getShortDateFormat()) +
                     ', ' +
@@ -561,8 +599,7 @@ class TicketsContainer extends React.Component {
                   const timeout = updated.clone().add(overdueIn, 'm');
                   return now.isAfter(timeout);
                 };
-
-                const hasTicketStatusUpdate = (ticket) => {
+                const hasTicketElementUpdate = (ticket) => {
                   const isAgent = this.props.sessionUser ? this.props.sessionUser.role.isAgent : false;
                   const isAdmin = this.props.sessionUser ? this.props.sessionUser.role.isAdmin : false;
                   if (isAgent || isAdmin) {
@@ -581,20 +618,15 @@ class TicketsContainer extends React.Component {
                 return (
                   <TableRow
                     key={ticket.get('_id')}
-                    className={`ticket-${statusChecked()} ${isOverdue() ? 'overdue' : ''}`}
+                    className={`ticket-${statusChecked()} ${isOverdue() ? 'overdue' : ''} tableRowHover`}
                     clickable={true}
-                    onClick={(e) => {
-                      if (e.target.tagName !== 'SPAN') {
-                        const td = e.target.closest('td');
-                        const input = td.getElementsByTagName('input');
-                        if (input.length > 0) return false;
-                        History.pushState(null, `Ticket-${ticket.get('uid')}`, `/tickets/${ticket.get('uid')}`);
-                      }
-                    }}
                   >
                     <TableCell
                       className={'ticket-priority nbb vam'}
                       style={{ borderColor: ticket.getIn(['priority', 'htmlColor']), padding: '18px 15px' }}
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
                     >
                       <input
                         type="checkbox"
@@ -611,7 +643,12 @@ class TicketsContainer extends React.Component {
                         </svg>
                       </label>
                     </TableCell>
-                    <TableCell className={`ticket-status ticket-${status()} vam nbb uk-text-center`}>
+                    <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
+                      className={`ticket-status ticket-${status()} vam nbb uk-text-center`}
+                    >
                       <StatusSelectorList
                         ticketId={ticket.get('_id')}
                         status={ticket.get('status')}
@@ -619,11 +656,21 @@ class TicketsContainer extends React.Component {
                         onStatusChange={(status) => {
                           this.sendNotification(ticket);
                         }}
-                        hasPerm={hasTicketStatusUpdate(ticket)}
+                        hasPerm={hasTicketElementUpdate(ticket)}
                       />
                     </TableCell>
-                    <TableCell className={'vam nbb'}>{ticket.get('uid')}</TableCell>
                     <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
+                      className={'vam nbb'}
+                    >
+                      {ticket.get('uid')}
+                    </TableCell>
+                    <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
                       className={'vam nbb'}
                       style={{
                         whiteSpace: 'nowrap',
@@ -637,14 +684,75 @@ class TicketsContainer extends React.Component {
                     >
                       {ticket.get('subject')}
                     </TableCell>
-                    <TableCell className={'vam nbb'}>
+                    <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
+                      className={'vam nbb'}
+                    >
                       {helpers.formatDate(ticket.get('date'), helpers.getShortDateFormat())}
                     </TableCell>
-                    <TableCell className={'vam nbb'}>{ticket.getIn(['owner', 'fullname'])}</TableCell>
-                    <TableCell className={'vam nbb'}>{ticket.getIn(['group', 'name'])}</TableCell>
-                    <TableCell className={'vam nbb'}>{assignee()}</TableCell>
-                    <TableCell className={'vam nbb'}>{dueDate}</TableCell>
-                    <TableCell className={'vam nbb'}>{updated}</TableCell>
+                    <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
+                      className={'vam nbb'}
+                    >
+                      {ticket.getIn(['owner', 'fullname'])}
+                    </TableCell>
+                    <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
+                      className={'vam nbb'}
+                    >
+                      {ticket.getIn(['group', 'name'])}
+                    </TableCell>
+                    <TableCell id="assignee" className={'vam nbb'}>
+                      <RefAssignee
+                        hasTicketUpdate={hasTicketElementUpdate}
+                        ticket={ticket}
+                        assignee={assignee()}
+                        ticketAssigneeId={assigneeId()}
+                      />
+                    </TableCell>
+                    <TableCell id="assignee" className={'vam nbb'}>
+                      {hasTicketElementUpdate(ticket) && (
+                        <div style={{ position: 'absolute', right: 50, top: 0 }}>
+                          <span
+                            className="drop-icon material-icons"
+                            style={{
+                              top: 15,
+                              fontSize: 16,
+                            }}
+                            onClick={() => {
+                              if (this.props.sessionUser._id != assigneeId()) {
+                                this.changeAssignee(ticket.get('_id'), this.props.sessionUser._id);
+                              }
+                            }}
+                            hasPerm={hasTicketElementUpdate(ticket)}
+                          >
+                            back_hand
+                          </span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
+                      className={'vam nbb'}
+                    >
+                      {dueDate}
+                    </TableCell>
+                    <TableCell
+                      onClick={(e) => {
+                        onClickTableCell(e, ticket.get('uid'));
+                      }}
+                      className={'vam nbb'}
+                    >
+                      {updated}
+                    </TableCell>
                   </TableRow>
                 );
               })}
