@@ -162,6 +162,23 @@ img {
 /*
  * Preserve original image dimensions
  */
+
+ .loader-spin {
+  border: 6px solid #f3f3f3; /* Light grey */
+  border-top: 6px solid rgba(255,127,80,0.9); /* Blue */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 2s linear infinite;
+}
+
+
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .uk-img-preserve,
 .uk-img-preserve img {
   max-width: none;
@@ -7594,6 +7611,38 @@ a.uk-thumbnail:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.uk-text-truncate:hover {
+  overflow: inherit;
+  text-overflow: inherit;
+  white-space: inherit;
+  height: auto;
+}
+
+[data-tooltip] {
+  position: absolute; /* Относительное позиционирование */ 
+ }
+ 
+ [data-tooltip]::after {
+  content: attr(data-tooltip); /* Выводим текст */
+  position: absolute; /* Абсолютное позиционирование */
+  width: 300px; /* Ширина подсказки */
+  left: 0; top: 0; /* Положение подсказки */
+  background: #3989c9; /* Синий цвет фона */
+  color: #fff; /* Цвет текста */
+  padding: 0.5em; /* Поля вокруг текста */
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* Параметры тени */
+  pointer-events: none; /* Подсказка */
+  opacity: 0; /* Подсказка невидима */
+  transition: 1s; /* Время появления подсказки */
+ } 
+ [data-tooltip]:hover::after {
+  opacity: 1; /* Показываем подсказку */
+  top: 2em; /* Положение подсказки */
+
+ }
+ 
+
 /*
  * Break strings if their length exceeds the width of their container
  */

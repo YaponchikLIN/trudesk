@@ -31,7 +31,10 @@ import $ from 'jquery'
 @observer
 class CreateGroupModal extends React.Component {
   @observable name = ''
-
+  @observable domainName = ''
+  @observable phone = ''
+  @observable site = ''
+  @observable address = ''
   constructor (props) {
     super(props)
     makeObservable(this)
@@ -57,15 +60,63 @@ class CreateGroupModal extends React.Component {
     this.name = e.target.value
   }
 
+  onInputChangeDomain (e) {
+    this.domainName = e.target.value
+  }
+
+  onInputChangePhone (e) {
+    this.phone = e.target.value
+  }
+
+  onInputChangeSite (e) {
+    this.site = e.target.value
+  }
+
+  onInputChangeAddress (e) {
+    this.address = e.target.value
+  }
+
+  //Валидация номера телефона
+  _validatePhone (phone) {
+    if (!phone) return false
+    return phone
+      .toString()
+      .toLowerCase()
+      .match(
+        /^\+\d+$/
+      )
+  }
+
+//Валидация сайта
+  _validateSite (site) {
+    if (!site) return false
+    return site
+      .toString()
+      .toLowerCase()
+      .match(
+        /(^https?:\/\/)?[a-z0-9~_\-\.]+\.[a-z]{2,9}(\/|:|\?[!-~]*)?$/i
+      )
+  }
+
+
   onFormSubmit (e) {
     e.preventDefault()
 
     const $form = $(e.target)
     if (!$form.isValid(null, null, false)) return false
 
+    if (!this._validatePhone(this.phone) && this.phone ) {
+      helpers.UI.showSnackbar('Invalid Phone', true)
+      return
+    }
+    
     const postData = {
       name: this.name,
-      members: this.membersSelect.getSelected() || []
+      domainName: this.domainName,
+      members: this.membersSelect.getSelected() || [],
+      phone: this.phone,
+      site: this.site,
+      address: this.address
     }
 
     this.props.createGroup(postData)
@@ -93,6 +144,43 @@ class CreateGroupModal extends React.Component {
               data-validation='length'
               data-validation-length={'min2'}
               data-validation-error-msg={'Please enter a valid Group name. (Must contain 2 characters)'}
+            />
+          </div>
+          <div className={'uk-margin-medium-bottom'}>
+            <label>Domain Name</label>
+            <input
+              type='text'
+              className={'md-input'}
+              value={this.domainName}
+              onChange={e => this.onInputChangeDomain(e)}
+            />
+          </div>
+          <div className={'uk-margin-medium-bottom'}>
+            <label>Phone Number</label>
+            <input
+              type='text'
+              className={'md-input'}
+              value={this.phone}
+              onChange={e => this.onInputChangePhone(e)}
+            />
+          </div>
+          <div className={'uk-margin-medium-bottom'}>
+            <label>Website</label>
+            <input
+              type='text'
+              className={'md-input'}
+              value={this.site}
+              onChange={e => this.onInputChangeSite(e)}
+              data-validation-error-msg={'Please enter a valid Website'}
+            />
+          </div>
+          <div className={'uk-margin-medium-bottom'}>
+            <label>Address</label>
+            <input
+              type='text'
+              className={'md-input'}
+              value={this.address}
+              onChange={e => this.onInputChangeAddress(e)}
             />
           </div>
           <div className={'uk-margin-medium-bottom'}>

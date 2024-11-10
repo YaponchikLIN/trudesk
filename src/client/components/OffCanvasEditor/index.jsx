@@ -11,117 +11,208 @@
  *  Copyright (c) 2014-2019 Trudesk, Inc. All rights reserved.
  */
 
-import React from 'react'
-import PropTypes from 'prop-types'
-import { makeObservable, observable } from 'mobx'
-import { observer } from 'mobx-react'
+import React from 'react';
+import PropTypes from 'prop-types';
+import { makeObservable, observable } from 'mobx';
+import { observer } from 'mobx-react';
+import axios from 'axios';
 
-import EasyMDE from 'components/EasyMDE'
-
-import $ from 'jquery'
-import 'jquery_custom'
-import helpers from 'lib/helpers'
+import EasyMDE from 'components/EasyMDE';
+import AttachedCommentFilesEdit from 'containers/Tickets/AttachedCommentFilesEdit';
+import $ from 'jquery';
+import 'jquery_custom';
+import helpers from 'lib/helpers';
+import Log from '../../logger';
+import { TICKETS_COMMENTS_UI_ATTACHMENTS_UPDATE } from 'serverSocket/socketEventConsts';
 
 @observer
 class OffCanvasEditor extends React.Component {
-  @observable mdeText = ''
-  @observable subjectText = ''
-  @observable showSubject = true
-  @observable onPrimaryClick = null
+  @observable mdeText = '';
+  @observable subjectText = '';
+  @observable showSubject = true;
+  @observable onPrimaryClick = null;
+  @observable comment;
+  @observable isNote;
+  @observable attachmentsToRemove = [];
+  @observable attachmentsToSave = [];
+  constructor(props) {
+    super(props);
+    makeObservable(this);
 
-  constructor (props) {
-    super(props)
-    makeObservable(this)
-
-    this.primaryClick = this.primaryClick.bind(this)
+    this.primaryClick = this.primaryClick.bind(this);
   }
 
-  componentDidMount () {
-    helpers.UI.inputs()
-    $('.off-canvas-bottom').DivResizer({})
-    this.showSubject = this.props.showSubject
+  componentDidMount() {
+    helpers.UI.inputs();
+    $('.off-canvas-bottom').DivResizer({});
+    this.showSubject = this.props.showSubject;
   }
 
-  componentDidUpdate () {
-    helpers.UI.reRenderInputs()
+  componentDidUpdate() {
+    helpers.UI.reRenderInputs();
   }
 
-  primaryClick () {
+  primaryClick() {
     const data = {
       subjectText: this.subjectText,
-      text: this.mdeText
+      text: this.mdeText,
+    };
+
+    if (this.onPrimaryClick) this.onPrimaryClick(data);
+
+    this.removeAttachments();
+
+    if (this.attachmentsToSave.length !== 0) {
+      this.props.updateData(this.attachmentsToSave);
     }
 
-    if (this.onPrimaryClick) this.onPrimaryClick(data)
+    if (this.attachmentsToRemove.length == 0 && this.comment?._id) {
+      this.props.attachingFileToComment(this.comment._id);
+      this.attachmentsToSave = [];
+      this.attachmentsToRemove = [];
+    }
 
-    this.closeEditorWindow()
+    this.closeEditorWindow();
   }
 
-  openEditorWindow (data) {
-    this.subjectText = data.subject || ''
-    this.mdeText = data.text || ''
-    this.editor.setEditorText(this.mdeText)
-    this.showSubject = data.showSubject !== undefined ? data.showSubject : true
-
-    this.onPrimaryClick = data.onPrimaryClick || null
-
-    $(this.editorWindow)
-      .removeClass('closed')
-      .addClass('open')
+  async removeAttachments() {
+    let removeCount = 0;
+    for (const attachment of this.attachmentsToRemove) {
+      removeCount++;
+      await axios
+        .delete(
+          `/api/v1/tickets/${this.props.ticket._id}/comments/${this.comment?._id}/attachments/remove/${attachment._id}`
+        )
+        .then(() => {
+          this.props.socket.emit(TICKETS_COMMENTS_UI_ATTACHMENTS_UPDATE, {
+            commentId: this.comment?._id,
+            ticketId: this.props.ticket._id,
+          });
+          helpers.UI.showSnackbar('Attachment Removed');
+          if (removeCount == this.attachmentsToRemove.length) {
+            this.props.attachingFileToComment(this.comment._id);
+            this.attachmentsToSave = [];
+            this.attachmentsToRemove = [];
+          }
+        })
+        .catch((error) => {
+          Log.error(error);
+          if (error.response) Log.error(error.response);
+          helpers.UI.showSnackbar(error, true);
+          if (removeCount == this.attachmentsToRemove.length) {
+            this.props.attachingFileToComment(this.comment._id);
+            this.attachmentsToSave = [];
+            this.attachmentsToRemove = [];
+          }
+        });
+    }
   }
 
-  closeEditorWindow (e) {
-    if (e) e.preventDefault()
-
-    $(this.editorWindow)
-      .removeClass('open')
-      .addClass('closed')
+  openEditorWindow(data) {
+    this.subjectText = data.subject || '';
+    this.mdeText = data.text || '';
+    this.editor.setEditorText(this.mdeText);
+    this.showSubject = data.showSubject !== undefined ? data.showSubject : true;
+    this.comment = data.comment;
+    this.onPrimaryClick = data.onPrimaryClick || null;
+    this.isNote = data.isNote;
+    $(this.editorWindow).removeClass('closed').addClass('open');
   }
 
-  render () {
+  closeEditorWindow(e) {
+    if (e) e.preventDefault();
+    this.props.socket.emit(TICKETS_COMMENTS_UI_ATTACHMENTS_UPDATE, {
+      commentId: this.comment?._id,
+      ticketId: this.props.ticket._id,
+    });
+    $(this.editorWindow).removeClass('open').addClass('closed');
+  }
+
+  pushAttachmentToRemove = (attachment) => {
+    if (attachment) {
+      this.attachmentsToRemove.push(attachment);
+      if (this.attachmentsToSave.length !== 0) {
+        if (this.attachmentsToSave.indexOf(attachment) !== -1) {
+          this.attachmentsToSave.splice(this.attachmentsToSave.indexOf(attachment), 1);
+        }
+      }
+    }
+  };
+
+  pushAttachmentToSave = (attachment) => {
+    if (attachment) {
+      this.attachmentsToSave.push(attachment);
+      if (this.attachmentsToRemove.length !== 0) {
+        if (this.attachmentsToRemove.indexOf(attachment) !== -1) {
+          this.attachmentsToRemove.splice(this.attachmentsToRemove.indexOf(attachment), 1);
+        }
+      }
+    }
+  };
+
+  render() {
     return (
-      <div className='off-canvas-bottom closed' ref={r => (this.editorWindow = r)}>
-        <div className='edit-window-wrapper'>
+      <div className="off-canvas-bottom closed" ref={(r) => (this.editorWindow = r)}>
+        <div className="edit-window-wrapper">
           {this.showSubject && (
-            <div className='edit-subject-wrap'>
-              <label htmlFor='edit-subject-input'>Subject</label>
+            <div className="edit-subject-wrap">
+              <label htmlFor="edit-subject-input">Subject</label>
               <input
-                id='edit-subject-input'
-                className='md-input mb-10'
+                id="edit-subject-input"
+                className="md-input mb-10"
                 value={this.subjectText}
-                onChange={e => (this.subjectText = e.target.value)}
+                onChange={(e) => (this.subjectText = e.target.value)}
               />
             </div>
           )}
-          <div className='editor-container'>
-            <div className='editor'>
-              <div className='code-mirror-wrap'>
+          <div className="editor-container">
+            <div className="editor">
+              <div className="code-mirror-wrap">
                 <EasyMDE
                   showStatusBar={false}
                   defaultValue={this.mdeText}
                   value={this.mdeText}
-                  onChange={val => (this.mdeText = val)}
-                  ref={r => (this.editor = r)}
+                  onChange={(val) => (this.mdeText = val)}
+                  ref={(r) => (this.editor = r)}
                   allowImageUpload={this.props.allowUploads}
                   inlineImageUploadUrl={this.props.uploadURL}
                 />
+
+                {!this.isNote && (
+                  <AttachedCommentFilesEdit
+                    ticket={this.props.ticket}
+                    commentId={this.comment?._id}
+                    comment={this.comment}
+                    attachments={this.comment?.attachments}
+                    status={this.props.status}
+                    owner={this.props.owner}
+                    subject={this.props.subject}
+                    issue={this.props.issue}
+                    date={this.props.date}
+                    dateFormat={this.props.dateFormat}
+                    editorWindow={this.props.editorWindow}
+                    socket={this.props.socket}
+                    pushAttachmentToRemove={this.pushAttachmentToRemove}
+                    pushAttachmentToSave={this.pushAttachmentToSave}
+                  />
+                )}
               </div>
             </div>
           </div>
 
-          <div className='action-panel'>
-            <div className='left-buttons'>
-              <button className='save-btn uk-button uk-button-accent mr-5' onClick={this.primaryClick}>
+          <div className="action-panel">
+            <div className="left-buttons">
+              <button className="save-btn uk-button uk-button-accent mr-5" onClick={this.primaryClick}>
                 {this.props.primaryLabel}
               </button>
-              <button className='uk-button uk-button-cancel' onClick={e => this.closeEditorWindow(e)}>
+              <button className="uk-button uk-button-cancel" onClick={(e) => this.closeEditorWindow(e)}>
                 Cancel
               </button>
             </div>
           </div>
         </div>
       </div>
-    )
+    );
   }
 }
 
@@ -131,13 +222,13 @@ OffCanvasEditor.propTypes = {
   onPrimaryClick: PropTypes.func,
   closeLabel: PropTypes.string,
   allowUploads: PropTypes.bool,
-  uploadURL: PropTypes.string
-}
+  uploadURL: PropTypes.string,
+};
 
 OffCanvasEditor.defaultProps = {
   showSubject: true,
   closeLabel: 'Cancel',
-  allowUploads: false
-}
+  allowUploads: false,
+};
 
-export default OffCanvasEditor
+export default OffCanvasEditor;

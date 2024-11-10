@@ -19,7 +19,7 @@ import api from '../../api'
 import Log from '../../logger'
 import helpers from 'lib/helpers'
 
-function downloadReport (response, filename) {
+function downloadReport(response, filename) {
   const headers = response.headers
   const blob = new Blob([response.data], { type: headers['content-type'] })
   const link = document.createElement('a')
@@ -29,8 +29,9 @@ function downloadReport (response, filename) {
   link.remove()
 }
 
-function * generateReport ({ payload, meta }) {
+function* generateReport({ payload, meta }) {
   try {
+    console.log('generateReport: ' + payload)
     const response = yield call(api.reports.generate, payload)
     yield put({ type: GENERATE_REPORT.SUCCESS, response, meta })
     downloadReport(response, payload.filename)
@@ -46,6 +47,6 @@ function * generateReport ({ payload, meta }) {
   }
 }
 
-export default function * watch () {
+export default function* watch() {
   yield takeLatest(GENERATE_REPORT.ACTION, generateReport)
 }

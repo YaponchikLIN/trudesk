@@ -14,16 +14,122 @@
 
 var _ = require('lodash')
 var ldap = require('ldapjs')
-
+var Setting = require('../models/setting')
 var ldapClient = {}
+const LDAPGroup = require('../models/ldapGroup');
+// var api = require('../client/api')
 ldapClient.client = null
+
+const pushLDAPGroup = (dnGroupsArray, callback) => {
+
+  try {
+
+    const ldapGroups = dnGroupsArray;
+
+    let result = [];
+
+    ldapGroups.forEach(group => {
+
+      LDAPGroup.findOne({ name: group }, (err, ldapGroup) => {
+
+        if (err) return callback(err);
+
+        if (ldapGroup) {
+          result.push({ message: `Group exists: ${ldapGroup.name}` });
+        } else {
+          LDAPGroup.insertMany({ name: group }, (err, newLdapGroup) => {
+            if (err) return callback(err);
+
+            result.push({ message: `Added group: ${newLdapGroup[0].name}` });
+          });
+        }
+
+      });
+
+    });
+
+    LDAPGroup.find()
+      .then(ldapGroups => {
+
+        ldapGroups.forEach(group => {
+          if (!ldapGroups.includes(group.name)) {
+            LDAPGroup.remove({ _id: group._id }, err => {
+              if (err) return callback(err);
+
+              result.push({ message: `Removed group: ${group.name}` });
+            });
+          }
+        });
+
+        return callback(null, result);
+
+      })
+      .catch(err => callback(err));
+
+  } catch (err) {
+    callback(err);
+  }
+
+}
 
 ldapClient.bind = function (url, userDN, password, callback) {
   ldapClient.client = ldap.createClient({
     url: url
   })
 
-  ldapClient.client.bind(userDN, password, callback)
+  const opts = {
+    filter: '(objectclass=*)',
+    scope: 'sub',
+    // attributes: ['dn', 'sn', 'cn']
+    attributes: ['dn', 'sn', 'cn', 'dc', 'ou']
+  };
+
+  ldapClient.client.bind(userDN, password, async function (err) {
+    if (err) {
+      console.log('Error in new connection ' + err);
+    } else {
+      console.log('Success');
+      Setting.findOne({ name: 'ldapSettings:pathToGroups' }, async (err, setting) => {
+
+        ldapClient.client.search(setting.value, opts, async (err, res) => {
+          var dnGroupsArray = [];
+          if (err) {
+            console.log('Error in new connection ' + err);
+          } else {
+            res.on('searchRequest', (searchRequest) => {
+              console.log('searchRequest: ', searchRequest.messageID);
+            })
+            res.on('searchEntry', (entry) => {
+              console.log('entry: ' + JSON.stringify(entry.object));
+              let dnGroup = JSON.parse(JSON.stringify(entry.object));
+              dnGroupsArray.push(dnGroup.dn);
+            });
+            res.on('searchReference', (referral) => {
+              console.log('referral: ' + referral.uris.join());
+            });
+            res.on('error', (err) => {
+              console.error('error: ' + err.message);
+            });
+            res.on('end', async (result) => {
+              console.log('status: ' + result.status);
+              Setting.findOne({ name: 'gen:siteurl' }, (err, url) => {
+                if (err) console.log(err);
+                pushLDAPGroup(dnGroupsArray, (err, res) => {
+                  if (err) {
+                    console.log(err)
+                  }
+                  if (res) console.log('pushLDAPGroup = true')
+                  return callback(null, res)
+                })
+
+              })
+            });
+          }
+        });
+      })
+
+    }
+  })
 
   ldapClient.client.on('error', function (err) {
     if (_.isFunction(callback)) {

@@ -30,7 +30,7 @@ import Button from 'components/Button'
 import BaseModal from 'containers/Modals/BaseModal'
 import SingleSelect from 'components/SingleSelect'
 import MultiSelect from 'components/MultiSelect'
-
+import Chance from 'chance'
 import helpers from 'lib/helpers'
 
 @observer
@@ -40,7 +40,9 @@ class EditAccountModal extends React.Component {
   @observable password = ''
   @observable confirmPassword = ''
   @observable email = ''
-
+  @observable phone = ''
+  @observable chance = new Chance()
+  @observable plainTextPass = this.passGenerate()
   selectedRole = ''
   @observable isAgentRole = false
 
@@ -53,6 +55,7 @@ class EditAccountModal extends React.Component {
     this.name = this.props.user.fullname
     this.title = this.props.user.title
     this.email = this.props.user.email
+    this.phone = this.props.user.phone
     this.isAgentRole = this.props.user.role.isAdmin || this.props.user.role.isAgent
 
     helpers.UI.inputs()
@@ -111,23 +114,55 @@ class EditAccountModal extends React.Component {
 
     this.isAgentRole = roleObject.get('isAdmin') || roleObject.get('isAgent')
   }
+  
+  _validatePhone (phone) {
+    if (!phone) return false
+    return phone
+      .toString()
+      .toLowerCase() 
+      .match(
+        /^\+\d+$/
+      )
+  }
 
   onSubmitSaveAccount (e) {
     e.preventDefault()
+    if (!this._validatePhone(this.phone) && this.phone ) {
+      helpers.UI.showSnackbar('Invalid Phone', true)
+      return
+    }
     if (!this.props.edit) return
     const data = {
       username: this.props.user.username,
       fullname: this.name,
       title: this.title,
       email: this.email,
+      phone: this.phone,
       groups: !this.isAgentRole && this.groupSelect ? this.groupSelect.getSelected() : undefined,
       teams: this.isAgentRole && this.teamsSelect ? this.teamsSelect.getSelected() : undefined,
       role: this.selectedRole,
-      password: this.password.length > 0 ? this.password : undefined,
-      passwordConfirm: this.confirmPassword.length > 0 ? this.confirmPassword : undefined
+      password: this.password.length > 3 ? this.password : this.plainTextPass,
+      passwordConfirm: this.confirmPassword.length > 3 ? this.confirmPassword : this.plainTextPass
     }
 
     this.props.saveEditAccount(data)
+  }
+  
+  passGenerate() {
+    let passResult = false;
+    while (passResult == false) {
+      let pass = this.chance.string({
+        length: 8,
+        pool: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890',
+        alpha: true,
+        numeric: true,
+        casing: 'lower',
+      })
+      if (pass.match(/[0-9]/) && pass.match(/[a-z]/) && pass.match(/[A-Z]/)) {
+        passResult = true;
+        return pass
+      }
+    }
   }
 
   render () {
@@ -269,6 +304,16 @@ class EditAccountModal extends React.Component {
                 className={'md-input'}
                 value={this.email}
                 onChange={e => this.onInputChanged(e, 'email')}
+                disabled={!edit}
+              />
+            </div>
+            <div className='uk-margin-medium-bottom'>
+              <label className='uk-form-label'>Phone</label>
+              <input
+                type='text'
+                className={'md-input'}
+                value={this.phone}
+                onChange={e => this.onInputChanged(e, 'phone')}
                 disabled={!edit}
               />
             </div>

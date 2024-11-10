@@ -12,53 +12,53 @@
  *  Copyright (c) 2014-2019. All rights reserved.
  */
 
-import React from 'react'
-import PropTypes from 'prop-types'
-import { connect } from 'react-redux'
-import $ from 'jquery'
-import UIKit from 'uikit'
+import React from 'react';
+import PropTypes from 'prop-types';
+import { connect } from 'react-redux';
+import $ from 'jquery';
+import UIKit from 'uikit';
 
-import { hideModal, clearModal } from 'actions/common'
+import { hideModal, clearModal } from 'actions/common';
 
 class BaseModal extends React.Component {
-  constructor (props) {
-    super(props)
+  constructor(props) {
+    super(props);
     this.state = {
-      modal: null
-    }
-    this.clearModal = this.clearModal.bind(this)
+      modal: null,
+    };
+    this.clearModal = this.clearModal.bind(this);
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.setState(
       {
-        modal: UIKit.modal(this.modal, this.props.options)
+        modal: UIKit.modal(this.modal, this.props.options),
       },
       () => {
-        this.state.modal.show()
-        $(this.modal).on('hide.uk.modal', this.clearModal)
+        this.state.modal.show();
+        $(this.modal).on('hide.uk.modal', this.clearModal);
       }
-    )
+    );
   }
 
-  show () {
-    if (this.state.modal) this.state.modal.show()
+  show() {
+    if (this.state.modal) this.state.modal.show();
   }
 
-  hide () {
-    this.props.hideModal()
+  hide() {
+    this.props.hideModal();
   }
 
-  clearModal () {
-    this.props.clearModal()
+  clearModal() {
+    this.props.clearModal();
   }
 
-  render () {
+  render() {
     return (
       <div
         id={'uk-modal'}
         className={'uk-modal' + (this.props.parentExtraClass ? ' ' + this.props.parentExtraClass : '')}
-        ref={i => (this.modal = i)}
+        ref={(i) => (this.modal = i)}
         data-modal-tag={this.props.modalTag}
       >
         <div
@@ -67,11 +67,12 @@ class BaseModal extends React.Component {
             (this.props.large ? ' uk-modal-dialog-large' : '') +
             (this.props.extraClass ? ' ' + this.props.extraClass : '')
           }
+          style={this.props.style}
         >
           {this.props.children}
         </div>
       </div>
-    )
+    );
   }
 }
 
@@ -83,10 +84,7 @@ BaseModal.propTypes = {
   clearModal: PropTypes.func.isRequired,
   parentExtraClass: PropTypes.string,
   extraClass: PropTypes.string,
-  children: PropTypes.oneOfType([PropTypes.arrayOf(PropTypes.node), PropTypes.node]).isRequired
-}
+  children: PropTypes.oneOfType([PropTypes.arrayOf(PropTypes.node), PropTypes.node]).isRequired,
+};
 
-export default connect(
-  null,
-  { hideModal, clearModal }
-)(BaseModal)
+export default connect(null, { hideModal, clearModal })(BaseModal);

@@ -23,13 +23,17 @@ import PeityPie from 'components/Peity/peity-pie'
 import PeityLine from 'components/Peity/peity-line'
 import MGraph from 'components/MGraph'
 import D3Pie from 'components/D3/d3pie'
-
+import { showModal, hideModal } from 'actions/common'
 import moment from 'moment-timezone'
 import helpers from 'lib/helpers'
+import { updateNavChange } from 'actions/nav'
 
 @observer
 class DashboardContainer extends React.Component {
   @observable timespan = 30
+  @observable username = ''
+  @observable phone = ''
+  @observable email = ''
 
   constructor (props) {
     super(props)
@@ -42,6 +46,11 @@ class DashboardContainer extends React.Component {
     this.props.fetchDashboardTopGroups({ timespan: this.timespan })
     this.props.fetchDashboardTopTags({ timespan: this.timespan })
     this.props.fetchDashboardOverdueTickets()
+
+    // const sidebarRoute = document.getElementById('__sidebar_route').innerText
+    // const sidebarSubRoute = document.getElementById('__sidebar_sub_route').innerText
+
+    // this.props.updateNavChange({ activeItem:'groups' })
   }
 
   onTimespanChange = e => {
@@ -64,8 +73,12 @@ class DashboardContainer extends React.Component {
     const closedPercent = this.props.dashboardState.closedCount
       ? Math.round((this.props.dashboardState.closedCount / this.props.dashboardState.ticketCount) * 100).toString()
       : '0'
+    
 
+    this.props.updateNavChange({ activeItem: 'groups'})
+      
     return (
+      
       <div>
         <PageTitle
           title={'Dashboard'}
@@ -161,7 +174,7 @@ class DashboardContainer extends React.Component {
                       height={250}
                       x_accessor={'date'}
                       y_accessor={'value'}
-                      data={this.props.dashboardState.ticketBreakdownData.toJS() || []}
+                      data={this.props.dashboardState?.ticketBreakdownData?.toJS() || []}
                     />
                   </div>
                 }
@@ -179,7 +192,7 @@ class DashboardContainer extends React.Component {
                 }
                 content={
                   <div>
-                    <D3Pie data={this.props.dashboardState.topGroups.toJS()} />
+                    <D3Pie data={this.props.dashboardState?.topGroups?.toJS() || []} />
                   </div>
                 }
               />
@@ -197,7 +210,7 @@ class DashboardContainer extends React.Component {
                 }
                 content={
                   <div>
-                    <D3Pie type={'donut'} data={this.props.dashboardState.topTags.toJS()} />
+                    <D3Pie type={'donut'} data={this.props.dashboardState?.topTags?.toJS() || []} />
                   </div>
                 }
               />
@@ -344,5 +357,7 @@ export default connect(mapStateToProps, {
   fetchDashboardData,
   fetchDashboardTopGroups,
   fetchDashboardTopTags,
-  fetchDashboardOverdueTickets
+  fetchDashboardOverdueTickets,
+  showModal,
+  updateNavChange
 })(DashboardContainer)

@@ -11,35 +11,35 @@
  *  Copyright (c) 2014-2019 Trudesk, Inc. All rights reserved.
  */
 
-import React from 'react'
-import PropTypes from 'prop-types'
-import helpers from 'lib/helpers'
+import React from 'react';
+import PropTypes from 'prop-types';
+import helpers from 'lib/helpers';
 
 class TruTabSelectors extends React.Component {
-  componentDidMount () {
-    helpers.setupTruTabs(document.querySelectorAll('.tru-tab-selectors > .tru-tab-selector'))
+  componentDidMount() {
+    helpers.setupTruTabs(document.querySelectorAll('.tru-tab-selectors > .tru-tab-selector'));
   }
 
-  render () {
-    const { children, showTrack } = this.props
+  render() {
+    const { children, showTrack, id } = this.props;
     return (
-      <div className='tru-tab-selectors' style={this.props.style} ref={r => (this.selectors = r)}>
+      <div className="tru-tab-selectors" style={this.props.style} ref={(r) => (this.selectors = r)} id={id}>
         {children}
 
-        <span className='tru-tab-highlighter' />
-        {showTrack && <span className='tru-tab-hr tru-tab-hr-lighten' />}
+        <span className="tru-tab-highlighter" />
+        {showTrack && <span className="tru-tab-hr tru-tab-hr-lighten" />}
       </div>
-    )
+    );
   }
 }
 
 TruTabSelectors.propTypes = {
   showTrack: PropTypes.bool,
-  style: PropTypes.object
-}
+  style: PropTypes.object,
+};
 
 TruTabSelectors.defaultProps = {
-  showTrack: true
-}
+  showTrack: true,
+};
 
-export default TruTabSelectors
+export default TruTabSelectors;

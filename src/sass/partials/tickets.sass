@@ -38,44 +38,85 @@ div#accountsTable_wrapper
   //border: 2px solid $ticket_status_closed
   +borderRadius(3px)
 
-.ticket-status.ticket-open span,
+.ticket-status.ticket-open span ,
 .ticket-status-open
   background: $ticket_status_open !important
   color: white !important
-.ticket-status.ticket-new span,
+.ticket-status.ticket-new span ,
 .ticket-status-new
   background: $ticket_status_new !important
   color: white !important
-.ticket-status.ticket-pending span,
+.ticket-status.ticket-pending span ,
 .ticket-status-pending
   background: $ticket_status_pending !important
   color: white !important
-.ticket-status.ticket-closed span,
+.ticket-status.ticket-closed span ,
 .ticket-status-closed
   background: $ticket_status_closed !important
   color: white !important
 
 .floating-ticket-status
   .ticket-status,
-  .ticket-status span
+  .ticket-status span 
     width: 65px !important
   .ticket-status
-    &.ticket-new span
+    &.ticket-new span 
       background: $ticket_status_new !important
       color: white !important
-    &.ticket-open span
+    &.ticket-open span 
       background: $ticket_status_open !important
       color: white !important
-    &.ticket-pending span
+    &.ticket-pending span 
       background: $ticket_status_pending !important
       color: white !important
-    &.ticket-closed span
+    &.ticket-closed span 
+      background: $ticket_status_closed !important
+      color: white !important
+
+.ticket-status.ticket-open span ,
+.ticket-status-open
+  background: $ticket_status_open !important
+  color: white !important
+.ticket-status.ticket-new span ,
+.ticket-status-new
+  background: $ticket_status_new !important
+  color: white !important
+.ticket-status.ticket-pending span ,
+.ticket-status-pending
+  background: $ticket_status_pending !important
+  color: white !important
+.ticket-status.ticket-closed span ,
+.ticket-status-closed
+  background: $ticket_status_closed !important
+  color: white !important
+
+.floating-ticket-status
+  .ticket-status-list,
+  .ticket-status-list span 
+    width: 25px !important
+  .ticket-status-list
+    &.ticket-new span 
+      background: $ticket_status_new !important
+      color: white !important
+    &.ticket-open span 
+      background: $ticket_status_open !important
+      color: white !important
+    &.ticket-pending span 
+      background: $ticket_status_pending !important
+      color: white !important
+    &.ticket-closed span 
       background: $ticket_status_closed !important
       color: white !important
 
 .ticket-priority
   border-left: 10px solid transparent
   background-clip: padding-box !important //Fix for firefox not showing borders
+
+.tableRowHover:hover .spanBackHand 
+  
+
+.spanBackHand 
+ 
 
 .floating-ticket-status
   position: absolute
@@ -97,7 +138,21 @@ div#accountsTable_wrapper
       padding: 0 !important
       margin: 0 !important
     &.shown
-      height: 124px !important
+      height: 121px !important
+      opacity: 1 !important
+  #statusSelectList
+    transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1)
+    height: 0
+    overflow: hidden
+    opacity: 0
+    &.hide
+      display: block !important
+      height: 0 !important
+      opacity: 0 !important
+      padding: 0 !important
+      margin: 0 !important
+    &.shown
+      height: 94px !important
       opacity: 1 !important
 
 #statusSelect
@@ -116,6 +171,25 @@ div#accountsTable_wrapper
     li
       margin-bottom: 3px
       cursor: pointer
+
+
+#statusSelectList
+  position: absolute
+  top: 28px
+  left: -27px
+  padding: 0
+  background: $page_content_right_bg
+  border: 1px solid $page_content_border_color
+  +borderRadius(3px)
+  z-index: 999
+  ul
+    margin: 0
+    list-style: none
+    padding: 5px
+    li
+      margin-bottom: 3px
+      cursor: pointer
+
 
 .page-actions
   .print-ticket
@@ -164,6 +238,20 @@ div#accountsTable_wrapper
   padding-left: 30px
   padding-top: 30px
   margin-bottom: 30px
+  &.tru-card
+    background: white
+    padding: 5px 15px 15px
+    +borderRadius(3px)
+    margin: 30px
+  h4
+    font-family: $fontFamily
+    font-size: 14px
+    color: darken($text_color, 10%)
+    margin-bottom: 10px
+
+.ticket-assignee-wrap-list,
+.tag-info-wrap
+  padding-left: 40px
   &.tru-card
     background: white
     padding: 5px 15px 15px
@@ -383,13 +471,13 @@ div#accountsTable_wrapper
       font-family: $fontFamily
       color: #76797e
       list-style: none
-      display: inline-block
+      padding-top: 5px
+      
 
       li
         position: relative
         padding-left: 15px
         margin-right: 8px
-        display: inline-block
 
         &:before
           content: "\f016"

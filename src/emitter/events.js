@@ -12,43 +12,58 @@
  *  Copyright (c) 2014-2019. All rights reserved.
  */
 
-const _ = require('lodash')
-const path = require('path')
-const async = require('async')
-const winston = require('../logger')
-const emitter = require('../emitter')
-const NotificationSchema = require('../models/notification')
-const settingsSchema = require('../models/setting')
-const Email = require('email-templates')
-const templateDir = path.resolve(__dirname, '..', 'mailer', 'templates')
-const socketEvents = require('../socketio/socketEventConsts')
-const notifications = require('../notifications') // Load Push Events
+const _ = require('lodash');
+const winston = require('../logger');
+const emitter = require('../emitter');
+const socketEvents = require('../socketio/socketEventConsts');
+const notifications = require('../notifications'); // Load Push Events
+const eventTicketCreated = require('./events/event_ticket_created');
+const eventUserCreated = require('./events/event_user_created');
+const eventTicketAssigneChanged = require('./events/event_ticket_assignee_changed');
+const eventTicketCommentAdded = require('./events/event_ticket_comment_added');
+const eventTicketNoteAdded = require('./events/event_ticket_note_added');
+const eventTicketWarning = require('./events/event_ticket_warning');
+const eventNewPassword = require('./events/event_new_password');
 
-const eventTicketCreated = require('./events/event_ticket_created')
-
-;(function () {
-  notifications.init(emitter)
+(function () {
+  notifications.init(emitter);
 
   emitter.on('ticket:created', async function (data) {
-    await eventTicketCreated(data)
-  })
+    await eventTicketCreated(data);
+  });
 
-  function sendPushNotification (tpsObj, data) {
-    const tpsEnabled = tpsObj.tpsEnabled
-    const tpsUsername = tpsObj.tpsUsername
-    const tpsApiKey = tpsObj.tpsApiKey
-    const hostname = tpsObj.hostname
-    let ticket = data.ticket
-    const message = data.message
+  emitter.on('ticket:warning', async function (ticket, comment, hostname) {
+    await eventTicketWarning(ticket);
+  });
+
+  emitter.on('ticket:assignee:changed', async function (data) {
+    await eventTicketAssigneChanged(data);
+  });
+
+  emitter.on('user:created', async function (data) {
+    await eventUserCreated(data);
+  });
+
+  emitter.on('password:new', async function (data) {
+    await eventNewPassword(data);
+  });
+
+  function sendPushNotification(tpsObj, data) {
+    const tpsEnabled = tpsObj.tpsEnabled;
+    const tpsUsername = tpsObj.tpsUsername;
+    const tpsApiKey = tpsObj.tpsApiKey;
+    const hostname = tpsObj.hostname;
+    let ticket = data.ticket;
+    const message = data.message;
 
     if (!tpsEnabled || !tpsUsername || !tpsApiKey) {
-      winston.debug('Warn: TPS - Push Service Not Enabled')
-      return
+      winston.debug('Warn: TPS - Push Service Not Enabled');
+      return;
     }
 
     if (!hostname) {
-      winston.debug('Could not get hostname for push: ' + data.type)
-      return
+      winston.debug('Could not get hostname for push: ' + data.type);
+      return;
     }
 
     // Data
@@ -57,49 +72,49 @@ const eventTicketCreated = require('./events/event_ticket_created')
     // 3 - Ticket Note Added
     // 4 - Ticket Assignee Set
     //  - Message
-    let title
-    let users = []
-    let content, comment, assigneeId, ticketUid
+    let title;
+    let users = [];
+    let content, comment, assigneeId, ticketUid;
     switch (data.type) {
       case 1:
-        title = 'Ticket #' + ticket.uid + ' Created'
-        content = ticket.owner.fullname + ' submitted a ticket'
+        title = 'Ticket #' + ticket.uid + ' Created';
+        content = ticket.owner.fullname + ' submitted a ticket';
         users = _.map(ticket.group.sendMailTo, function (o) {
-          return o._id
-        })
-        break
+          return o._id;
+        });
+        break;
       case 2:
-        title = 'Ticket #' + ticket.uid + ' Updated'
-        content = _.last(ticket.history).description
-        comment = _.last(ticket.comments)
+        title = 'Ticket #' + ticket.uid + ' Updated';
+        content = _.last(ticket.history).description;
+        comment = _.last(ticket.comments);
         users = _.compact(
           _.map(ticket.subscribers, function (o) {
             if (comment.owner._id.toString() !== o._id.toString()) {
-              return o._id
+              return o._id;
             }
           })
-        )
-        break
+        );
+        break;
       case 3:
-        title = message.owner.fullname + ' sent you a message'
-        break
+        title = message.owner.fullname + ' sent you a message';
+        break;
       case 4:
-        assigneeId = data.assigneeId
-        ticketUid = data.ticketUid
-        ticket = {}
-        ticket._id = data.ticketId
-        ticket.uid = data.ticketUid
-        title = 'Assigned to Ticket #' + ticketUid
-        content = 'You were assigned to Ticket #' + ticketUid
-        users = [assigneeId]
-        break
+        assigneeId = data.assigneeId;
+        ticketUid = data.ticketUid;
+        ticket = {};
+        ticket._id = data.ticketId;
+        ticket.uid = data.ticketUid;
+        title = 'Assigned to Ticket #' + ticketUid;
+        content = 'You were assigned to Ticket #' + ticketUid;
+        users = [assigneeId];
+        break;
       default:
-        title = ''
+        title = '';
     }
 
     if (_.size(users) < 1) {
-      winston.debug('No users to push too | UserSize: ' + _.size(users))
-      return
+      winston.debug('No users to push too | UserSize: ' + _.size(users));
+      return;
     }
 
     const n = {
@@ -108,194 +123,88 @@ const eventTicketCreated = require('./events/event_ticket_created')
         ticketId: ticket._id,
         ticketUid: ticket.uid,
         users: users,
-        hostname: hostname
-      }
-    }
+        hostname: hostname,
+      },
+    };
 
     if (content) {
-      n.content = content
+      n.content = content;
     }
 
-    notifications.pushNotification(tpsUsername, tpsApiKey, n)
+    notifications.pushNotification(tpsUsername, tpsApiKey, n);
   }
 
   emitter.on('ticket:updated', function (ticket) {
-    io.sockets.emit('$trudesk:client:ticket:updated', { ticket: ticket })
-  })
+    io.sockets.emit('$trudesk:client:ticket:updated', { ticket: ticket });
+  });
 
   emitter.on('ticket:deleted', function (oId) {
-    io.sockets.emit('ticket:delete', oId)
-    io.sockets.emit('$trudesk:client:ticket:deleted', oId)
-  })
+    io.sockets.emit('ticket:delete', oId);
+    io.sockets.emit('$trudesk:client:ticket:deleted', oId);
+  });
 
   emitter.on('ticket:subscriber:update', function (data) {
-    io.sockets.emit('ticket:subscriber:update', data)
-  })
+    io.sockets.emit('ticket:subscriber:update', data);
+  });
 
-  emitter.on('ticket:comment:added', function (ticket, comment, hostname) {
+  emitter.on('ticket:comment:added', async function (ticket, comment, hostname) {
     // Goes to client
-    io.sockets.emit(socketEvents.TICKETS_UPDATE, ticket)
+    io.sockets.emit(socketEvents.TICKETS_UPDATE, ticket);
+    await eventTicketCommentAdded(ticket, comment, hostname);
+  });
 
-    settingsSchema.getSettingsByName(['tps:enable', 'tps:username', 'tps:apikey', 'mailer:enable'], function (
-      err,
-      tpsSettings
-    ) {
-      if (err) return false
+  emitter.on('ticket:tcm:update', async function (data) {
+    io.sockets.emit('$trudesk:client:tcm:update', data);
+  });
 
-      let tpsEnabled = _.head(_.filter(tpsSettings, ['name', 'tps:enable']))
-      let tpsUsername = _.head(_.filter(tpsSettings, ['name', 'tps:username']))
-      let tpsApiKey = _.head(_.filter(tpsSettings), ['name', 'tps:apikey'])
-      let mailerEnabled = _.head(_.filter(tpsSettings), ['name', 'mailer:enable'])
-      mailerEnabled = !mailerEnabled ? false : mailerEnabled.value
+  emitter.on('tsorting:update', async function (data) {
+    io.sockets.emit('$trudesk:client:tsorting:update', data);
+  });
 
-      if (!tpsEnabled || !tpsUsername || !tpsApiKey) {
-        tpsEnabled = false
-      } else {
-        tpsEnabled = tpsEnabled.value
-        tpsUsername = tpsUsername.value
-        tpsApiKey = tpsApiKey.value
-      }
+  emitter.on('tsortings:fetch', async function (data) {
+    io.sockets.emit('$trudesk:client:tsortings:fetch', data);
+  });
 
-      async.parallel(
-        [
-          function (cb) {
-            if (ticket.owner._id.toString() === comment.owner.toString()) return cb
-            if (!_.isUndefined(ticket.assignee) && ticket.assignee._id.toString() === comment.owner.toString())
-              return cb
-
-            const notification = new NotificationSchema({
-              owner: ticket.owner,
-              title: 'Comment Added to Ticket#' + ticket.uid,
-              message: ticket.subject,
-              type: 1,
-              data: { ticket: ticket },
-              unread: true
-            })
-
-            notification.save(function (err) {
-              return cb(err)
-            })
-          },
-          function (cb) {
-            if (_.isUndefined(ticket.assignee)) return cb()
-            if (ticket.assignee._id.toString() === comment.owner.toString()) return cb
-            if (ticket.owner._id.toString() === ticket.assignee._id.toString()) return cb()
-
-            const notification = new NotificationSchema({
-              owner: ticket.assignee,
-              title: 'Comment Added to Ticket#' + ticket.uid,
-              message: ticket.subject,
-              type: 2,
-              data: { ticket: ticket },
-              unread: true
-            })
-
-            notification.save(function (err) {
-              return cb(err)
-            })
-          },
-          function (cb) {
-            sendPushNotification(
-              {
-                tpsEnabled: tpsEnabled,
-                tpsUsername: tpsUsername,
-                tpsApiKey: tpsApiKey,
-                hostname: hostname
-              },
-              { type: 2, ticket: ticket }
-            )
-            return cb()
-          },
-          // Send email to subscribed users
-          function (c) {
-            if (!mailerEnabled) return c()
-
-            const mailer = require('../mailer')
-            let emails = []
-            async.each(
-              ticket.subscribers,
-              function (member, cb) {
-                if (_.isUndefined(member) || _.isUndefined(member.email)) return cb()
-                if (member._id.toString() === comment.owner.toString()) return cb()
-                if (member.deleted) return cb()
-
-                emails.push(member.email)
-
-                cb()
-              },
-              function (err) {
-                if (err) return c(err)
-
-                emails = _.uniq(emails)
-
-                if (_.size(emails) < 1) {
-                  return c()
-                }
-
-                const email = new Email({
-                  views: {
-                    root: templateDir,
-                    options: {
-                      extension: 'handlebars'
-                    }
-                  }
-                })
-
-                ticket.populate('comments.owner', function (err, ticket) {
-                  if (err) winston.warn(err)
-                  if (err) return c()
-
-                  ticket = ticket.toJSON()
-
-                  email
-                    .render('ticket-comment-added', {
-                      ticket: ticket,
-                      comment: comment
-                    })
-                    .then(function (html) {
-                      const mailOptions = {
-                        to: emails.join(),
-                        subject: 'Updated: Ticket #' + ticket.uid + '-' + ticket.subject,
-                        html: html,
-                        generateTextFromHTML: true
-                      }
-
-                      mailer.sendMail(mailOptions, function (err) {
-                        if (err) winston.warn('[trudesk:events:sendSubscriberEmail] - ' + err)
-
-                        winston.debug('Sent [' + emails.length + '] emails.')
-                      })
-
-                      return c()
-                    })
-                    .catch(function (err) {
-                      winston.warn('[trudesk:events:sendSubscriberEmail] - ' + err)
-                      return c(err)
-                    })
-                })
-              }
-            )
-          }
-        ],
-        function () {
-          // Blank
-        }
-      )
-    })
-  })
-
-  emitter.on('ticket:note:added', function (ticket) {
+  emitter.on('blacklist:fetch', async function (data) {
     // Goes to client
-    io.sockets.emit('updateNotes', ticket)
-  })
+    io.sockets.emit('$trudesk:client:blacklist:fetch', data);
+  });
+
+  emitter.on('blacklist:check', async function (data) {
+    // Goes to client
+    io.sockets.emit('$trudesk:client:blacklist:check', data);
+  });
+
+  emitter.on('blacklist:save', async function (data) {
+    // Goes to client
+    io.sockets.emit('$trudesk:client:blacklist:save', data);
+  });
+
+  emitter.on('watchers:fetch', async function (data) {
+    io.sockets.emit('$trudesk:client:watchers:fetch', data);
+  });
+
+  emitter.on('watchers:check', async function (data) {
+    io.sockets.emit('$trudesk:client:watchers:check', data);
+  });
+
+  emitter.on('watchers:save', async function (data) {
+    io.sockets.emit('$trudesk:client:watchers:save', data);
+  });
+
+  emitter.on('ticket:note:added', async function (ticket, note) {
+    // Goes to client
+    io.sockets.emit('updateNotes', ticket);
+    await eventTicketNoteAdded(ticket, note);
+  });
 
   emitter.on('trudesk:profileImageUpdate', function (data) {
-    io.sockets.emit('trudesk:profileImageUpdate', data)
-  })
+    io.sockets.emit('trudesk:profileImageUpdate', data);
+  });
 
   emitter.on(socketEvents.ROLES_FLUSH, function () {
     require('../permissions').register(function () {
-      io.sockets.emit(socketEvents.ROLES_FLUSH)
-    })
-  })
-})()
+      io.sockets.emit(socketEvents.ROLES_FLUSH);
+    });
+  });
+})();

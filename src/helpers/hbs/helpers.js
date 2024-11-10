@@ -519,6 +519,7 @@ const helpers = {
 
   formatDate: function (date, format, timezone) {
     if (!date) return ''
+
     return moment
       .utc(date)
       .tz(typeof timezone === 'string' ? timezone : global.timezone)

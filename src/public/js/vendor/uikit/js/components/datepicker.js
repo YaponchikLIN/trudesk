@@ -1,5 +1,5 @@
 /*! UIkit 2.25.0 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
-;(function (addon) {
+; (function (addon) {
   var component
 
   if (window.UIkit) {
@@ -47,6 +47,8 @@
       minDate: false,
       pos: 'auto',
       template: function (data, opts) {
+        console.log('template date')
+        console.log(data)
         var content = '',
           i
 
@@ -78,7 +80,8 @@
             '</select></span>'
 
           // --
-
+          console.log('data.month')
+          console.log(data.month)
           options = []
 
           minYear = data.minDate ? data.minDate.year() : currentyear - 50
@@ -144,7 +147,8 @@
         content += '</tbody>'
 
         content += '</table>'
-
+        // console.log('content Date')
+        // console.log(content)
         return content
       }
     },
@@ -159,7 +163,6 @@
       // init code
       UI.$html.on('focus.datepicker.uikit', '[data-uk-datepicker]', function (e) {
         var ele = UI.$(this)
-
         if (!ele.data('datepicker')) {
           e.preventDefault()
           UI.datepicker(ele, UI.Utils.options(ele.attr('data-uk-datepicker')))
@@ -244,11 +247,11 @@
       }
 
       var posTop =
-          offset.top -
-          this.element.outerHeight() +
-          this.element.height() -
-          this.options.offsettop -
-          dropdown.outerHeight(),
+        offset.top -
+        this.element.outerHeight() +
+        this.element.height() -
+        this.options.offsettop -
+        dropdown.outerHeight(),
         posBottom = offset.top + this.element.outerHeight() + this.options.offsettop
 
       css.top = posBottom

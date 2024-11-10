@@ -23,7 +23,8 @@ import {
   DELETE_TICKET,
   TICKET_EVENT,
   FETCH_TICKET_TYPES,
-  FETCH_PRIORITIES
+  FETCH_PRIORITIES,
+  SET_CURRENT_TICKET
 } from 'actions/types'
 
 const initialState = {
@@ -39,7 +40,7 @@ const initialState = {
 }
 
 // Util function until custom views are finished
-function hasInView (view, status, assignee, userId, userGroupIds, groupId) {
+function hasInView(view, status, assignee, userId, userGroupIds, groupId) {
   let hasView = false
   let hasGroup = false
   switch (view) {
@@ -82,6 +83,13 @@ function hasInView (view, status, assignee, userId, userGroupIds, groupId) {
 
 const reducer = handleActions(
   {
+    [SET_CURRENT_TICKET.SUCCSESS]: (state, action) => {
+      return {
+        ...state,
+        currentTicketId: action.payload
+      }
+    },
+
     [FETCH_TICKETS.PENDING]: (state, action) => {
       return {
         ...state,

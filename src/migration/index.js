@@ -14,17 +14,22 @@
 
 var _ = require('lodash')
 var async = require('async')
-var winston = require('winston')
+var winston = require('../logger')
 var semver = require('semver')
+var moment = require('moment')
 var version = require('../../package.json').version
+
 
 var SettingsSchema = require('../models/setting')
 var userSchema = require('../models/user')
 var roleSchema = require('../models/role')
+var database = require('../database')
+const path = require('path')
 
 var migrations = {}
 
-function saveVersion (callback) {
+
+function saveVersion(callback) {
   SettingsSchema.getSettingByName('gen:version', function (err, setting) {
     if (err) {
       winston.warn(err)
@@ -60,7 +65,7 @@ function saveVersion (callback) {
   })
 }
 
-function getDatabaseVersion (callback) {
+function getDatabaseVersion(callback) {
   SettingsSchema.getSettingByName('gen:version', function (err, setting) {
     if (err) return callback(err)
 
@@ -74,7 +79,7 @@ function getDatabaseVersion (callback) {
   })
 }
 
-function migrateUserRoles (callback) {
+function migrateUserRoles(callback) {
   winston.debug('Migrating Roles...')
   async.waterfall(
     [
@@ -143,7 +148,7 @@ function migrateUserRoles (callback) {
   )
 }
 
-function createAdminTeamDepartment (callback) {
+function createAdminTeamDepartment(callback) {
   const Team = require('../models/team')
   const Department = require('../models/department')
   const Account = require('../models/user')
@@ -182,7 +187,7 @@ function createAdminTeamDepartment (callback) {
   )
 }
 
-function removeAgentsFromGroups (callback) {
+function removeAgentsFromGroups(callback) {
   // winston.debug('Migrating Agents from Groups...')
   var groupSchema = require('../models/group')
   groupSchema.getAllGroups(function (err, groups) {

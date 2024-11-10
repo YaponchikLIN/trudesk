@@ -52,8 +52,15 @@ module.exports = function (app, db, callback) {
   // Required to access handlebars in mail templates
   global.Handlebars = hbs.handlebars
 
-  app.use(bodyParser.urlencoded({ limit: '2mb', extended: false }))
-  app.use(bodyParser.json({ limit: '2mb' }))
+  // app.use(bodyParser.json({ limit: '500mb'}))
+  app.use(bodyParser.json({ limit: '50mb' }));
+  app.use(bodyParser.urlencoded({
+    limit: '50mb',
+    parameterLimit: 100000,
+    extended: true
+  }));
+  // app.use(express.json({ limit: '50mb' }));
+  // app.use(express.urlencoded({ limit: '50mb' }));
   app.use(cookieParser())
 
   if (global.env === 'production') {
@@ -175,7 +182,7 @@ module.exports = function (app, db, callback) {
   )
 }
 
-function allowCrossDomain (req, res, next) {
+function allowCrossDomain(req, res, next) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
   res.setHeader(

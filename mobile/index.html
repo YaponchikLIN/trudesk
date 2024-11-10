@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="initial-scale=1,user-scalable=no, width=device-width, height=device-height, viewport-fit=cover">
-     <meta http-equiv="Content-Security-Policy" content="default-src gap://ready file://* * 'self' data: blob: 'unsafe-inline' 'unsafe-eval' ws: wss:;"> 
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,user-scalable=no, width=device-width, height=device-height, viewport-fit=cover"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src gap://ready file://* * 'self' data: blob: 'unsafe-inline' 'unsafe-eval' ws: wss:;"
+    />
     <title></title>
 
-
     <!-- compiled css output -->
-    <link href="css/ionic.app.css" rel="stylesheet">
+    <link href="css/ionic.app.css" rel="stylesheet" />
 
     <!-- ionic/angularjs js -->
     <script src="lib/ionic/js/ionic.bundle.js"></script>
@@ -21,7 +26,7 @@
     <!-- <script src="cordova.js"></script> -->
 
     <!--ionic filter plugin-->
-    <link rel="stylesheet" href="lib/ionic-filter-bar/dist/ionic.filter.bar.css">
+    <link rel="stylesheet" href="lib/ionic-filter-bar/dist/ionic.filter.bar.css" />
     <script src="lib/ionic-filter-bar/dist/ionic.filter.bar.js" charset="utf-8"></script>
 
     <!-- Libs -->
@@ -30,12 +35,12 @@
     <script src="lib/underscore/underscore-min.js" charset="utf-8"></script>
     <script src="lib/d3/d3.min.js" charset="utf-8"></script>
     <script src="lib/c3/c3.min.js"></script>
-    <link rel="stylesheet" href="lib/c3/c3.min.css">
+    <link rel="stylesheet" href="lib/c3/c3.min.css" />
     <script src="lib/peity/jquery.peity.min.js"></script>
-    <link rel="stylesheet" href="lib/snackbar/dist/snackbar.css">
+    <link rel="stylesheet" href="lib/snackbar/dist/snackbar.css" />
     <script src="lib/snackbar/dist/snackbar.js" charset="utf-8"></script>
     <script src="lib/ng-cropper/dist/ngCropper.all.js" charset="utf-8"></script>
-    <link rel="stylesheet" href="lib/ng-cropper/dist/ngCropper.all.css">
+    <link rel="stylesheet" href="lib/ng-cropper/dist/ngCropper.all.css" />
     <!-- <script src="lib/cropperjs/dist/cropper.min.js"></script> -->
     <!-- <link rel="stylesheet" href="lib/cropperjs/dist/cropper.min.css" /> -->
     <script src="lib/angular-elastic/elastic.js" charset="utf-8"></script>
@@ -43,16 +48,128 @@
     <script src="lib/moment/min/moment.min.js" charset="utf-8"></script>
     <script src="lib/angular-moment/angular-moment.min.js" charset="utf-8"></script>
     <script src="lib/angular-img-http-src/index.js" charset="utf-8"></script>
+    <script src="firebase/firebaseConfig.js"></script>
 
     <!-- your app's js -->
     <script src="js/dist/td.app.min.js"></script>
+    <!-- <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js"></script> -->
+
+    <script type="module" defer>
+      // Импортируем необходимые модули из Firebase
+      import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+      import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js';
+
+      // Определяем константы для настроек запроса и Firebase
+      const requestUrl = '/api/v1/settings/general/firebaseConfig';
+      const requestHeaders = {
+        Authorization: 'Bearer some-token', // пример авторизации
+        'Content-Type': 'application/json', // пример типа содержимого
+      };
+      const serviceWorkerUrl = '/mobile/firebase-messaging-sw.js';
+
+      // Функция для получения настроек Firebase с сервера
+      async function getFirebaseConfig() {
+        try {
+          // Отправляем GET-запрос и получаем ответ в формате JSON
+          const response = await fetch(requestUrl, { method: 'GET', headers: requestHeaders });
+          const data = await response.json();
+          // Возвращаем объект с настройками Firebase
+          return {
+            apiKey: data.settings.apiKey,
+            authDomain: data.settings.authDomain,
+            projectId: data.settings.projectId,
+            storageBucket: data.settings.storageBucket,
+            messagingSenderId: data.settings.messagingSenderId,
+            appId: data.settings.appId,
+            vapidKey: data.settings.vapidKey,
+          };
+        } catch (error) {
+          // Обрабатываем ошибки и выводим их в консоль
+          console.error(error);
+        }
+      }
+
+      // Функция для регистрации сервис-воркера и получения токена для уведомлений
+      async function registerServiceWorkerAndToken(firebaseConfig) {
+        try {
+          // Проверяем поддержку сервис-воркеров в браузере
+          if ('serviceWorker' in navigator) {
+            // Регистрируем сервис-воркер из указанного файла
+            const registration = await navigator.serviceWorker.register(serviceWorkerUrl);
+            // Выводим сообщение об успешной регистрации
+            console.log('Service worker registration succeeded:', registration);
+            // Запрашиваем разрешение на отправку уведомлений
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              // Выводим сообщение об успешном разрешении
+              console.log('Notification permission granted.');
+              // Инициализируем приложение Firebase и получаем ссылку на сервис уведомлений
+              const app = initializeApp(firebaseConfig);
+              const messaging = getMessaging(app);
+              // Получаем токен для уведомлений с помощью vapidKey и регистрации сервис-воркера
+              const currentToken = await getToken(messaging, {
+                vapidKey: firebaseConfig.vapidKey,
+                serviceWorkerRegistration: registration,
+              });
+              if (currentToken) {
+                // Выводим токен в консоль и отправляем его на сервер с ID пользователя
+                const sessionUserID = JSON.parse(localStorage['ngStorage-loggedInUser'])?._id;
+                const accessToken = JSON.parse(localStorage['ngStorage-accessToken']);
+                const postData = { currentToken, sessionUserID, accessToken };
+                const postResponse = await fetch('/api/v2/accounts/notificationToken', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(postData),
+                });
+                const postResult = await postResponse.json();
+                console.log('postResult:', postResult);
+              } else {
+                // Выводим сообщение об ошибке при получении токена
+                console.log('Can not get token');
+              }
+            } else {
+              // Выводим сообщение об ошибке при получении разрешения на уведомления
+              console.log('Unable to get permission to notify.');
+            }
+          } else {
+            // Выводим сообщение об отсутствии поддержки сервис-воркеров в браузере
+            console.log('Service workers are not supported in this browser.');
+          }
+        } catch (error) {
+          // Обрабатываем ошибки и выводим их в консоль
+          console.error(error);
+        }
+      }
+
+      // Функция для обработки сообщений от сервис-воркера
+      function handleServiceWorkerMessage(event) {
+        // Проверяем наличие действия в данных сообщения
+        if (!event.data.action) {
+          return;
+        }
+        // Выполняем действие в зависимости от его типа
+        switch (event.data.action) {
+          case 'redirect-from-notificationclick':
+            // Перенаправляем пользователя на указанный URL
+            window.location.href = event.data.url;
+            break;
+          // Добавляем другие типы действий по необходимости
+        }
+      }
+
+      // Вызываем асинхронные функции в нужном порядке
+      getFirebaseConfig().then(registerServiceWorkerAndToken);
+
+      // Добавляем слушатель событий для сообщений от сервис-воркера
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    </script>
   </head>
   <body ng-app="trudesk">
     <div class="mobile-container">
-    <div id="loader"></div>
+      <div id="loader"></div>
       <ion-nav-bar class="bar-dark nav-title-slide-ios7">
-        <ion-nav-back-button>
-        </ion-nav-back-button>
+        <ion-nav-back-button> </ion-nav-back-button>
       </ion-nav-bar>
 
       <ion-nav-view></ion-nav-view>

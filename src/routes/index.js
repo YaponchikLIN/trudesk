@@ -16,8 +16,11 @@ const path = require('path')
 const winston = require('../logger')
 const packagejson = require('../../package.json')
 
-function mainRoutes (router, middleware, controllers) {
+function mainRoutes(router, middleware, controllers) {
   router.get('/', middleware.redirectToDashboardIfLoggedIn, controllers.main.index)
+  router.get('/loginChatwoot', controllers.main.loginChatwoot)
+  router.get('/mappingChatwoot', controllers.main.mappingChatwoot)
+  router.get('/changeMappingOrCreate', controllers.main.changeMappingOrCreate)
   router.get('/healthz', function (req, res) {
     return res.status(200).send('OK')
   })
@@ -33,6 +36,10 @@ function mainRoutes (router, middleware, controllers) {
   })
 
   router.post('/login', controllers.main.loginPost)
+  router.post('/loginChatwoot', controllers.main.loginChatwootPost)  // Chatwoot
+  // router.get('/loginChatwoot', controllers.main.loginChatwoot)   // Chatwoot
+  // router.post('/loginChatwoot', controllers.main.index) 
+  // router.post('/login', controllers.main.loginPost)
   router.get('/l2auth', controllers.main.l2authget)
   router.post('/l2auth', controllers.main.l2AuthPost)
   router.get('/logout', controllers.main.logout)
@@ -209,6 +216,17 @@ function mainRoutes (router, middleware, controllers) {
     middleware.csrfCheck,
     controllers.tickets.uploadAttachment
   )
+  router.post(
+    '/tickets/uploadattachmentfromchatwoot',
+    middleware.redirectToLogin,
+    controllers.tickets.uploadAttachment
+  )
+  router.post(
+    '/tickets/comments/uploadattachment',
+    middleware.redirectToLogin,
+    middleware.csrfCheck,
+    controllers.tickets.uploadCommentAttachment
+  )
   router.post('/tickets/uploadmdeimage', middleware.redirectToLogin, controllers.tickets.uploadImageMDE)
 
   // Messages
@@ -243,15 +261,18 @@ function mainRoutes (router, middleware, controllers) {
   router.get('/accounts/agents', middleware.redirectToLogin, middleware.loadCommonData, controllers.accounts.getAgents)
   router.get('/accounts/admins', middleware.redirectToLogin, middleware.loadCommonData, controllers.accounts.getAdmins)
   router.post('/accounts/uploadimage', middleware.redirectToLogin, controllers.accounts.uploadImage)
-  // router.get('/accounts/import', middleware.redirectToLogin, middleware.loadCommonData, controllers.accounts.importPage)
+  router.get('/accounts/import', middleware.redirectToLogin, middleware.loadCommonData, controllers.accounts.importPage)
   // router.post('/accounts/import/csv/upload', middleware.redirectToLogin, controllers.accounts.uploadCSV)
   // router.post('/accounts/import/json/upload', middleware.redirectToLogin, controllers.accounts.uploadJSON)
-  // router.post('/accounts/import/ldap/bind', middleware.redirectToLogin, controllers.accounts.bindLdap)
+  // router.post('/accounts/import/ldap/bind', middleware.redirectToLogin, controllers.accounts.bindLdap) 
+
 
   // Groups
   router.get('/groups', middleware.redirectToLogin, middleware.loadCommonData, controllers.groups.get)
   router.get('/groups/create', middleware.redirectToLogin, middleware.loadCommonData, controllers.groups.getCreate)
   router.get('/groups/:id', middleware.redirectToLogin, middleware.loadCommonData, controllers.groups.edit)
+
+
 
   // Teams
   router.get('/teams', middleware.redirectToLogin, middleware.loadCommonData, controllers.teams.get)
@@ -340,6 +361,8 @@ function mainRoutes (router, middleware, controllers) {
   )
   router.get('/settings/legal', middleware.redirectToLogin, middleware.loadCommonData, controllers.settings.legal)
   router.get('/settings/logs', middleware.redirectToLogin, middleware.loadCommonData, controllers.settings.logs)
+  router.get('/settings/chatwoot', middleware.redirectToLogin, middleware.loadCommonData, controllers.settings.chatwoot)
+
 
   router.get(
     '/settings/editor/:template',
@@ -456,7 +479,7 @@ module.exports = function (app, middleware) {
   app.use(handleErrors)
 }
 
-function handleErrors (err, req, res) {
+function handleErrors(err, req, res) {
   const status = err.status || 500
   res.status(err.status)
 
@@ -484,6 +507,6 @@ function handleErrors (err, req, res) {
   })
 }
 
-function handle404 (req, res) {
+function handle404(req, res) {
   return res.status(404).render('404', { layout: false })
 }

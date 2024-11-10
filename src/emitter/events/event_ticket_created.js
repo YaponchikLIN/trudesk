@@ -11,26 +11,29 @@
  *  Updated:    4/20/22 2:12 AM
  *  Copyright (c) 2014-2022. All rights reserved.
  */
+const path = require('path');
+const pathUpload = path.join(__dirname, `../../../public`);
+const { head, filter, flattenDeep, concat, uniq, uniqBy, map, chain } = require('lodash');
+const logger = require('../../logger');
+const notificationFCM = require('../../firebase/adminMessaging');
+const Ticket = require('../../models/ticket');
+const TCM = require('../../models/tcm');
+const User = require('../../models/user');
+const Role = require('../../models/role');
+const Setting = require('../../models/setting');
+const Department = require('../../models/department');
+const Notification = require('../../models/notification');
+const Template = require('../../models/template');
+const Mailer = require('../../mailer');
 
-const path = require('path')
-const { head, filter, flattenDeep, concat, uniq, uniqBy, map, chain } = require('lodash')
-const logger = require('../../logger')
-const Ticket = require('../../models/ticket')
-const User = require('../../models/user')
-const Setting = require('../../models/setting')
-const Department = require('../../models/department')
-const Notification = require('../../models/notification')
-const Template = require('../../models/template')
-const Mailer = require('../../mailer')
+const Email = require('email-templates');
+const templateDir = path.resolve(__dirname, '../..', 'mailer', 'templates');
+const permissions = require('../../permissions');
 
-const Email = require('email-templates')
-const templateDir = path.resolve(__dirname, '../..', 'mailer', 'templates')
-const permissions = require('../../permissions')
-
-const socketUtils = require('../../helpers/utils')
-const sharedVars = require('../../socketio/index').shared
-const socketEvents = require('../../socketio/socketEventConsts')
-const util = require('../../helpers/utils')
+const socketUtils = require('../../helpers/utils');
+const sharedVars = require('../../socketio/index').shared;
+const socketEvents = require('../../socketio/socketEventConsts');
+const util = require('../../helpers/utils');
 
 const sendSocketUpdateToUser = (user, ticket) => {
   socketUtils.sendToUser(
@@ -39,130 +42,158 @@ const sendSocketUpdateToUser = (user, ticket) => {
     user.username,
     '$trudesk:client:ticket:created',
     ticket
-  )
-}
+  );
+};
 
-const getTeamMembers = async group => {
-  const departments = await Department.getDepartmentsByGroup(group._id)
-  if (!departments) throw new Error('Group is not assigned to any departments. Exiting...')
+const getTeamMembers = async (group) => {
+  const departments = await Department.getDepartmentsByGroup(group._id);
+  if (!departments) throw new Error('Group is not assigned to any departments. Exiting...');
   return flattenDeep(
-    departments.map(department => {
-      return department.teams.map(team => {
-        return team.members.map(member => {
-          return member
-        })
-      })
+    departments.map((department) => {
+      return department.teams.map((team) => {
+        return team.members.map((member) => {
+          return member;
+        });
+      });
     })
-  )
-}
+  );
+};
 
-const parseMemberEmails = async ticket => {
-  const emails = []
+const parseMemberEmails = async (ticket) => {
+  const emails = [];
 
-  const teamMembers = await getTeamMembers(ticket.group)
+  const teamMembers = await getTeamMembers(ticket.group);
 
-  let members = concat(teamMembers, ticket.group.members)
-  let emailTo = concat(teamMembers, ticket.group.sendMailTo)
+  let members = concat(teamMembers, ticket.group.members);
+  let emailTo = concat(teamMembers, ticket.group.sendMailTo);
 
   emailTo = chain(emailTo)
-    .filter(i => {
-      return i.email !== ticket.owner.email
+    .filter((i) => {
+      return i.email !== ticket.owner.email;
     })
-    .map(i => i.email)
+    .map((i) => i.email)
     .uniq()
-    .value()
+    .value();
 
-  members = uniqBy(members, i => i._id)
+  members = uniqBy(members, (i) => i._id);
 
   for (const member of members) {
-    if (member.deleted) continue
+    if (member.deleted) continue;
 
-    sendSocketUpdateToUser(member, ticket)
+    sendSocketUpdateToUser(member, ticket);
 
-    if (typeof member.email === 'undefined' || emailTo.indexOf(member.email) === -1) continue
+    if (typeof member.email === 'undefined' || emailTo.indexOf(member.email) === -1) continue;
 
-    emails.push(member.email)
+    emails.push(member.email);
   }
 
-  return uniq(emails)
-}
+  return uniq(emails);
+};
 
 const sendMail = async (ticket, emails, baseUrl, betaEnabled) => {
-  let email = null
+  if (emails.length < 1) {
+    logger.warn('[CreateTicketEvent::SendMail] - No recipients defined for sendMail')
+    return
+  }
+  let email = null;
 
   if (betaEnabled) {
     email = new Email({
       render: (view, locals) => {
         return new Promise((resolve, reject) => {
-          ;(async () => {
+          (async () => {
             try {
-              if (!global.Handlebars) return reject(new Error('Could not load global.Handlebars'))
-              const template = await Template.findOne({ name: view })
-              if (!template) return reject(new Error('Invalid Template'))
-              const html = global.Handlebars.compile(template.data['gjs-fullHtml'])(locals)
-              const results = await email.juiceResources(html)
-              return resolve(results)
+              if (!global.Handlebars) return reject(new Error('Could not load global.Handlebars'));
+              const template = await Template.findOne({ name: view });
+              if (!template) return reject(new Error('Invalid Template'));
+              const html = global.Handlebars.compile(template.data['gjs-fullHtml'])(locals);
+              const results = await email.juiceResources(html);
+              return resolve(results);
             } catch (e) {
-              return reject(e)
+              return reject(e);
             }
-          })()
-        })
-      }
-    })
+          })();
+        });
+      },
+    });
   } else {
     email = new Email({
       views: {
         root: templateDir,
         options: {
-          extension: 'handlebars'
-        }
-      }
-    })
+          extension: 'handlebars',
+        },
+      },
+    });
   }
 
-  const template = await Template.findOne({ name: 'new-ticket' })
+  const template = await Template.findOne({ name: 'new-ticket' });
   if (template) {
-    const ticketJSON = ticket.toJSON()
-    const context = { base_url: baseUrl, ticket: ticketJSON }
+    const ticketJSON = ticket.toJSON();
 
-    const html = await email.render('new-ticket', context)
-    const subjectParsed = global.Handlebars.compile(template.subject)(context)
-    const mailOptions = {
+    const attachmentsForSendMail = [];
+    if (ticket?.attachments) {
+      for (const attachment of ticket?.attachments) {
+        const attachmentPath = pathUpload + attachment.path;
+        attachmentsForSendMail.push({ name: attachment.name, path: attachmentPath });
+      }
+    }
+
+    const context = { base_url: baseUrl, ticket: ticketJSON };
+
+    const html = await email.render('new-ticket', context);
+    const subjectParsed = global.Handlebars.compile(template.subject)(context);
+    let mailOptions = {
       to: emails.join(),
       subject: subjectParsed,
       html,
-      generateTextFromHTML: true
+      generateTextFromHTML: true,
+      attachments: attachmentsForSendMail,
+      cc: []
+    };
+
+    if (ticket.watchers && ticket.watchers.length !== 0) {
+      for (const watcher of ticket.watchers) {
+        if (watcher && watcher !== '') {
+          if (!ticket.subscribers.includes(watcher)) {
+            mailOptions.cc.push(watcher.email);
+          }
+        }
+      }
     }
 
     Mailer.sendMail(mailOptions, function (err) {
-      if (err) throw err
+      if (err) {
+        logger.error(err)
+        throw err
+      }
 
-      logger.debug(`Sent [${emails.length}] emails.`)
-    })
+      logger.debug(`Sent [${emails.length}] emails.`);
+    });
   }
-}
+};
 
-const createNotification = async ticket => {
-  let members = await getTeamMembers(ticket.group)
+const createNotification = async (ticket) => {
+  let members = await getTeamMembers(ticket.group);
 
-  members = concat(members, ticket.group.members)
-  members = uniqBy(members, i => i._id)
+  members = concat(members, ticket.group.members);
+  members = uniqBy(members, (i) => i._id);
 
   for (const member of members) {
-    if (!member) continue
-    await saveNotification(member, ticket)
+    if (!member) continue;
+    await saveNotification(member, ticket);
   }
-}
+};
 
-const createPublicNotification = async ticket => {
-  let rolesWithPublic = permissions.getRoles('ticket:public')
-  rolesWithPublic = map(rolesWithPublic, 'id')
-  const users = await User.getUsersByRoles(rolesWithPublic)
+const createPublicNotification = async (ticket) => {
+  let rolesWithPublic = permissions.getRoles('ticket:public');
+  rolesWithPublic = map(rolesWithPublic, 'id');
+  const users = await User.getUsersByRoles(rolesWithPublic);
 
   for (const user of users) {
-    await saveNotification(user, ticket)
+    await saveNotification(user, ticket);
   }
-}
+};
 
 const saveNotification = async (user, ticket) => {
   const notification = new Notification({
@@ -171,34 +202,96 @@ const saveNotification = async (user, ticket) => {
     message: ticket.subject,
     type: 0,
     data: { ticket },
-    unread: true
-  })
+    unread: true,
+  });
 
-  await notification.save()
-}
+  await notification.save();
+};
 
-module.exports = async data => {
-  const ticketObject = data.ticket
-  const hostname = data.hostname
+const sendNotificationFCM = async (ticket, ticketLink) => {
+  // Получаем id владельца и исполнителя заявки, если они есть
+  const ownerId = ticket.owner._id ? ticket.owner._id.toString() : null;
+  const notificationUsers = [];
+  // Создаем массив id пользователей для уведомления, добавляя владельца и исполнителя, если они не входят в подписчики
+  if (ownerId && !notificationUsers.includes(ownerId)) {
+    notificationUsers.push(ownerId);
+  }
+
+  // Находим id роли Support
+  const supportRole = await Role.findOne({ name: 'Support' }).exec();
+  const supportRoleId = supportRole._id;
+  const adminRole = await Role.findOne({ name: 'Admin' }).exec();
+  const adminRoleId = adminRole._id;
+
+  // Находим пользователей с ролью Support
+  const supportUsers = await User.find({ role: [supportRoleId, adminRoleId] }).exec();
+
+  // Добавляем их id в notificationUsers, если они еще не там
+  supportUsers.forEach((user) => {
+    const userId = user._id.toString();
+    if (!notificationUsers.includes(userId)) {
+      notificationUsers.push(userId);
+    }
+  });
+
+  // Находим пользователей по id и получаем их токены для уведомления
+  const users = await User.find({ _id: { $in: notificationUsers } }).exec();
+  const notificationTokens = users.map((user) => user.notificationTokens).flat();
+
+  // Создаем и отправляем сообщение с уведомлением
+  const message = {
+    tokens: notificationTokens,
+    // notification: {
+    //   title: `Создана заявка #${ticket.uid}`,
+    //   body: `Тема: ${ticket.subject}`,
+    // },
+    data: {
+      title: `Создана заявка #${ticket.uid}`,
+      body: `Тема: ${ticket.subject}`,
+      click_action: ticketLink,
+    },
+  };
+  notificationFCM(message);
+};
+
+module.exports = async (data) => {
+  const ticketObject = data.ticket;
 
   try {
-    const ticket = await Ticket.getTicketById(ticketObject._id)
-    const settings = await Setting.getSettingsByName(['gen:siteurl', 'mailer:enable', 'beta:email'])
+    const ticket = await Ticket.getTicketById(ticketObject._id);
+    const settings = await Setting.getSettingsByName(['gen:siteurl', 'mailer:enable', 'beta:email']);
 
-    const baseUrl = head(filter(settings, ['name', 'gen:siteurl'])).value
-    let mailerEnabled = head(filter(settings, ['name', 'mailer:enable']))
-    mailerEnabled = !mailerEnabled ? false : mailerEnabled.value
-    let betaEnabled = head(filter(settings, ['name', 'beta:email']))
-    betaEnabled = !betaEnabled ? false : betaEnabled.value
+    const tcm = {
+      ticketId: ticket._id,
+      ticketUid: ticket.uid,
+      users: [],
+    };
+    TCM.create(tcm, (err) => {
+      if (err) throw err;
+    });
 
-    const [emails] = await Promise.all([parseMemberEmails(ticket)])
+    const baseUrl = head(filter(settings, ['name', 'gen:siteurl'])).value;
+    const ticketLink = `${baseUrl}/tickets/${ticket.uid}`;
+    let mailerEnabled = head(filter(settings, ['name', 'mailer:enable']));
+    mailerEnabled = !mailerEnabled ? false : mailerEnabled.value;
+    let betaEnabled = head(filter(settings, ['name', 'beta:email']));
+    betaEnabled = !betaEnabled ? false : betaEnabled.value;
 
-    if (mailerEnabled) await sendMail(ticket, emails, baseUrl, betaEnabled)
-    if (ticket.group.public) await createPublicNotification(ticket)
-    else await createNotification(ticket)
+    //++ ShaturaPro LIN 14.10.2022
+    const emails = [];
+    if (ticket.owner.email && ticket.owner.email !== '') {
+      emails.push(ticket.owner.email);
+    }
 
-    util.sendToAllConnectedClients(io, socketEvents.TICKETS_CREATED, ticket)
+    if (mailerEnabled) await sendMail(ticket, emails, baseUrl, betaEnabled);
+    if (ticket.group.public) await createPublicNotification(ticket);
+    else await createNotification(ticket);
+
+    sendNotificationFCM(ticket, ticketLink);
+
+    util.sendToAllConnectedClients(io, socketEvents.TICKETS_CREATED, ticket);
+    util.sendToAllConnectedClients(io, socketEvents.TICKETS_LIST_UPDATE, ticket);
   } catch (e) {
-    logger.warn(`[trudesk:events:ticket:created] - Error: ${e}`)
+    logger.warn(`[trudesk:events:ticket:created] - Error: ${e}`);
   }
-}
+};

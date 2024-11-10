@@ -12,26 +12,26 @@
  *  Copyright (c) 2014-2019. All rights reserved.
  */
 
-const _ = require('lodash')
-const async = require('async')
-const path = require('path')
-const winston = require('../logger')
+const _ = require('lodash');
+const async = require('async');
+const path = require('path');
+const winston = require('../logger');
 
-const debugController = {}
+const debugController = {};
 
-debugController.content = {}
+debugController.content = {};
 
 debugController.populatedatabase = function (req, res) {
-  const Chance = require('chance')
-  const chance = new Chance()
-  const ticketSchema = require('../models/ticket')
-  const ticketTypeSchema = require('../models/tickettype')
-  const userSchema = require('../models/user')
-  const groupSchema = require('../models/group')
-  const tagSchema = require('../models/tag')
+  const Chance = require('chance');
+  const chance = new Chance();
+  const ticketSchema = require('../models/ticket');
+  const ticketTypeSchema = require('../models/tickettype');
+  const userSchema = require('../models/user');
+  const groupSchema = require('../models/group');
+  const tagSchema = require('../models/tag');
 
-  const ticketsToSave = []
-  let users = []
+  const ticketsToSave = [];
+  let users = [];
 
   const subjects = [
     '911 Cad Updates',
@@ -310,113 +310,113 @@ debugController.populatedatabase = function (req, res) {
     'Windows System Error immediately after signing onto desktop',
     'Windows Update',
     'Windows Update Failure during system startup',
-    'Windows updates taking 30 to 45 minutes each morning to revert'
-  ]
+    'Windows updates taking 30 to 45 minutes each morning to revert',
+  ];
 
   async.series(
     [
       function (done) {
-        const roles = global.roles
-        const userRole = _.find(roles, { normalized: 'user' })
+        const roles = global.roles;
+        const userRole = _.find(roles, { normalized: 'user' });
 
-        users = []
+        users = [];
         for (let i = 0; i < 11; i++) {
-          const random = Math.floor(Math.random() * (10000 - 1 + 1)) + 1
-          const first = chance.first()
-          const last = chance.last()
+          const random = Math.floor(Math.random() * (10000 - 1 + 1)) + 1;
+          const first = chance.first();
+          const last = chance.last();
           const user = {
             username: first + '.' + last,
             fullname: first + ' ' + last,
             email: first + '.' + last + random + '@' + chance.domain(),
             title: chance.profession(),
             password: 'password',
-            role: userRole._id
-          }
+            role: userRole._id,
+          };
 
-          users.push(user)
+          users.push(user);
         }
 
-        userSchema.collection.insert(users, done)
+        userSchema.collection.insert(users, done);
       },
       function (done) {
-        groupSchema.remove({}, done)
+        groupSchema.remove({}, done);
       },
       function (done) {
-        tagSchema.remove({}, done)
+        tagSchema.remove({}, done);
       },
       function (done) {
-        ticketSchema.remove({}, done)
+        ticketSchema.remove({}, done);
       },
       function (done) {
-        const groups = []
+        const groups = [];
         for (let i = 0; i < 11; i++) {
-          let name = chance.company()
+          let name = chance.company();
           while (_.find(groups, { name: name })) {
-            name = chance.company()
+            name = chance.company();
           }
 
           const group = {
             name: name,
             __v: 0,
             members: _.map(users, function (o) {
-              return o._id
-            })
-          }
+              return o._id;
+            }),
+          };
 
-          groups.push(group)
+          groups.push(group);
         }
 
-        groupSchema.collection.insert(groups, done)
+        groupSchema.collection.insert(groups, done);
       },
       function (done) {
         // Populate Tags...
-        const tags = getSampleTags()
-        const usedTags = []
-        const savedTags = []
+        const tags = getSampleTags();
+        const usedTags = [];
+        const savedTags = [];
         for (let i = 0; i < 1001; i++) {
-          const tag = _.sample(tags)
+          const tag = _.sample(tags);
           if (_.includes(usedTags, tag)) {
-            continue
+            continue;
           }
 
           const t = {
             name: tag,
-            __v: 0
-          }
+            __v: 0,
+          };
 
-          usedTags.push(tag)
-          savedTags.push(t)
+          usedTags.push(tag);
+          savedTags.push(t);
         }
 
-        tagSchema.collection.insert(savedTags, done)
+        tagSchema.collection.insert(savedTags, done);
       },
       function (done) {
         userSchema.findAll(function (err, users) {
-          if (err) return done(err)
+          if (err) return done(err);
 
           groupSchema.getAllGroups(function (err, groups) {
-            if (err) return done(err)
+            if (err) return done(err);
 
             ticketTypeSchema.getTypes(function (err, types) {
-              if (err) return done(err)
+              if (err) return done(err);
 
               tagSchema.getTags(function (err, tags) {
-                if (err) return done(err)
+                if (err) return done(err);
 
-                const loremIpsum = require('lorem-ipsum')
+                const loremIpsum = require('lorem-ipsum');
                 for (let i = 0; i < 100001; i++) {
-                  const user = users[Math.floor(Math.random() * users.length)]
-                  const group = groups[Math.floor(Math.random() * groups.length)]
-                  const type = types[Math.floor(Math.random() * types.length)]
-                  const tagCount = chance.integer({ min: 1, max: 6 })
-                  const ticketTags = []
+                  const user = users[Math.floor(Math.random() * users.length)];
+                  const group = groups[Math.floor(Math.random() * groups.length)];
+                  const type = types[Math.floor(Math.random() * types.length)];
+                  const tagCount = chance.integer({ min: 1, max: 6 });
+                  const ticketTags = [];
                   for (let k = 0; k < tagCount; k++) {
-                    const t = tags[Math.floor(Math.random() * tags.length)]
+                    const t = tags[Math.floor(Math.random() * tags.length)];
                     if (!_.includes(ticketTags, t._id)) {
-                      ticketTags.push(t._id)
+                      ticketTags.push(t._id);
                     }
                   }
-                  const randomPriority = type.priorities[Math.floor(Math.random() * type.priorities.length)]
+                  const randomPriority = type.priorities[Math.floor(Math.random() * type.priorities.length)];
                   const ticket = {
                     __v: 0,
                     // uid: res.value.next,
@@ -430,72 +430,59 @@ debugController.populatedatabase = function (req, res) {
                     priority: randomPriority._id,
                     subject: _.sample(subjects),
                     issue: loremIpsum({ count: 3, units: 'paragraph' }),
-                    deleted: false
-                  }
+                    deleted: false,
+                  };
 
-                  winston.debug('Adding Ticket...(' + i + ')')
-                  ticketsToSave.push(ticket)
+                  winston.debug('Adding Ticket...(' + i + ')');
+                  ticketsToSave.push(ticket);
                 }
 
-                return done()
-              })
-            })
-          })
-        })
+                return done();
+              });
+            });
+          });
+        });
       },
       function (done) {
-        winston.debug('Saving Tickets...')
-        ticketSchema.collection.insert(ticketsToSave, done)
+        winston.debug('Saving Tickets...');
+        ticketSchema.collection.insert(ticketsToSave, done);
       },
       function (done) {
-        const counterSchema = require('../models/counters')
-        counterSchema.setCounter('tickets', 101001, done)
-      }
+        const counterSchema = require('../models/counters');
+        counterSchema.setCounter('tickets', 101001, done);
+      },
     ],
     function (err) {
-      if (err) return res.status(400).send(err)
+      if (err) return res.status(400).send(err);
 
-      return res.send('OK')
+      return res.send('OK');
     }
-  )
-}
+  );
+};
 
-function randomDate (start, end) {
-  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+function randomDate(start, end) {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
 debugController.sendmail = function (req, res) {
-  const mailer = require('../mailer')
-  const templateSchema = require('../models/template')
-  const Email = require('email-templates')
-  const templateDir = path.resolve(__dirname, '..', 'mailer', 'templates')
+  const mailer = require('../mailer');
+  const templateSchema = require('../models/template');
+  const Email = require('email-templates');
+  const templateDir = path.resolve(__dirname, '..', 'mailer', 'templates');
 
-  const to = req.query.email
+  const to = req.query.email;
   if (to === undefined) {
-    return res.status(400).send('Invalid Email in querystring "email"')
+    return res.status(400).send('Invalid Email in querystring "email"');
   }
 
   const email = new Email({
     views: {
       root: templateDir,
       options: {
-        extension: 'handlebars'
-      }
-    }
-    // This is to test the new email templates (beta feature)
-    // render: function (view, locals) {
-    //   return new Promise(function (resolve, reject) {
-    //     if (!global.Handlebars) return reject(new Error('Could not load global.Handlebars'))
-    //     templateSchema.findOne({ name: view }, function (err, template) {
-    //       if (err) return reject(err)
-    //       if (!template) return reject(new Error('Invalid Template'))
-    //       const html = global.Handlebars.compile(template.data['gjs-fullHtml'])(locals)
-    //       console.log(html)
-    //       email.juiceResources(html).then(resolve)
-    //     })
-    //   })
-    // }
-  })
+        extension: 'handlebars',
+      },
+    },
+  });
 
   const ticket = {
     uid: 100001,
@@ -506,11 +493,11 @@ debugController.sendmail = function (req, res) {
         comment: 'TESTING',
         owner: {
           fullname: 'test user',
-          email: 'test@test.com'
-        }
-      }
-    ]
-  }
+          email: 'test@test.com',
+        },
+      },
+    ],
+  };
 
   email
     .render('ticket-comment-added', { base_url: global.TRUDESK_BASEURL, ticket: ticket, comment: ticket.comments[0] })
@@ -519,95 +506,89 @@ debugController.sendmail = function (req, res) {
         to: to,
         subject: 'Trudesk Test Email #' + ticket.uid + ' [Debugger]',
         html: html,
-        generateTextFromHTML: true
-      }
+        generateTextFromHTML: true,
+      };
 
       mailer.sendMail(mailOptions, function (err) {
-        if (err) throw new Error(err)
+        if (err) throw new Error(err);
 
-        return res.status(200).send('OK')
-      })
+        return res.status(200).send('OK');
+      });
     })
     .catch(function (err) {
-      console.log(err)
-      res.status(400).json({ error: err })
-    })
-}
+      console.log(err);
+      res.status(400).json({ error: err });
+    });
+};
 
 debugController.uploadPlugin = function (req, res) {
-  const fs = require('fs')
-  const path = require('path')
-  const Busboy = require('busboy')
+  const fs = require('fs');
+  const path = require('path');
+  const Busboy = require('busboy');
   const busboy = new Busboy({
     headers: req.headers,
     limits: {
       files: 1,
-      fileSize: 10 * 1024 * 1024 // 10mb limit
-    }
-  })
+      fileSize: 10 * 1024 * 1024, // 10mb limit
+    },
+  });
 
-  const object = {}
-  let error
+  const object = {};
+  let error;
 
   busboy.on('field', function (fieldname, val) {
-    if (fieldname === 'plugin') object.plugin = val
-  })
+    if (fieldname === 'plugin') object.plugin = val;
+  });
 
   busboy.on('file', function (fieldname, file, filename, encoding, mimetype) {
-    console.log(mimetype)
     if (mimetype.indexOf('x-zip-compressed') === -1) {
       error = {
         status: 500,
-        message: 'Invalid File Type'
-      }
+        message: 'Invalid File Type',
+      };
 
-      return file.resume()
+      return file.resume();
     }
 
-    const savePath = path.join(__dirname, '../../public/uploads/plugins')
-    if (!fs.existsSync(savePath)) fs.mkdirSync(savePath)
+    const savePath = path.join(__dirname, '../../public/uploads/plugins');
+    if (!fs.existsSync(savePath)) fs.mkdirSync(savePath);
 
-    object.plugin = path.basename(filename)
-    object.filePath = path.join(savePath, object.plugin)
-    object.mimetype = mimetype
-
-    console.log(object)
+    object.plugin = path.basename(filename);
+    object.filePath = path.join(savePath, object.plugin);
+    object.mimetype = mimetype;
 
     file.on('limit', function () {
       error = {
         status: 500,
-        message: 'File too large'
-      }
+        message: 'File too large',
+      };
 
-      // Delete the temp file
-      // if (fs.existsSync(object.filePath)) fs.unlinkSync(object.filePath);
+      return file.resume();
+    });
 
-      return file.resume()
-    })
-
-    file.pipe(fs.createWriteStream(object.filePath))
-  })
+    file.pipe(fs.createWriteStream(object.filePath));
+  });
 
   busboy.on('finish', function () {
-    if (error) return res.status(error.status).send(error.message)
+    if (error) return res.status(error.status).send(error.message);
 
     if (_.isUndefined(object.plugin) || _.isUndefined(object.filePath)) {
-      return res.status(500).send('Invalid Form Data')
+      return res.status(500).send('Invalid Form Data');
     }
 
     // Everything Checks out lets make sure the file exists and then add it to the attachments array
-    if (!fs.existsSync(object.filePath)) return res.status(500).send('File Failed to Save to Disk')
+    if (!fs.existsSync(object.filePath)) return res.status(500).send('File Failed to Save to Disk');
 
-    const unzipper = require('unzipper')
-    fs.createReadStream(object.filePath).pipe(unzipper.Extract({ path: path.join(__dirname, '../../plugins') }))
+    const unzipper = require('unzipper');
+    fs.createReadStream(object.filePath).pipe(unzipper.Extract({ path: path.join(__dirname, '../../plugins') }));
 
-    return res.sendStatus(200)
-  })
+    return res.sendStatus(200);
+  });
 
-  req.pipe(busboy)
-}
+  req.pipe(busboy);
+};
 
-function getSampleTags () {
+function getSampleTags() {
   const tags = [
     'javascript',
     'java',
@@ -944,9 +925,9 @@ function getSampleTags () {
     'junit',
     'highcharts',
     'drop-down-menu',
-    'paypal'
-  ]
-  return tags
+    'paypal',
+  ];
+  return tags;
 }
 
-module.exports = debugController
+module.exports = debugController;

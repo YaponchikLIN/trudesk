@@ -94,6 +94,21 @@ define('modules/socket.io/accountsImporter', ['jquery', 'modules/helpers', 'hist
         finishImport(type, completedCount)
       }
     })
+
+    socket.on('$trudesk:accounts:import:onCommentAdded', function (data) {
+      var type = data.type
+      var item = data.item
+      var totalCount = data.totalCount
+      var completedCount = data.completedCount
+      var percent = Math.floor((completedCount / totalCount) * 100)
+
+      onStatusChange(type, item, percent)
+
+      // See if we are done
+      if (completedCount >= totalCount) {
+        finishImport(type, completedCount)
+      }
+    })
   }
 
   accountsImporter.sendAccountData = function (type, addedUsers, updatedUsers) {

@@ -20,13 +20,15 @@ const archiver = require('archiver')
 const database = require('../database')
 const winston = require('../logger')
 const moment = require('moment')
+const pkg = require('../../package.json')
 
 global.env = process.env.NODE_ENV || 'production'
 
 let CONNECTION_URI = null
+let FILENAME = null
 
-function createZip (callback) {
-  const filename = 'trudesk-' + moment().format('MMDDYYYY_HHmm') + '.zip'
+function createZip(callback) {
+  const filename = FILENAME
   const output = fs.createWriteStream(path.join(__dirname, '../../backups/', filename))
   const archive = archiver('zip', {
     zlib: { level: 9 }
@@ -52,12 +54,12 @@ function createZip (callback) {
   archive.finalize()
 }
 
-function cleanup (callback) {
+function cleanup(callback) {
   const rimraf = require('rimraf')
   rimraf(path.join(__dirname, '../../backups/dump'), callback)
 }
 
-function copyFiles (callback) {
+function copyFiles(callback) {
   // Make sure the directories are created for the backup.
   fs.ensureDirSync(path.join(__dirname, '../../public/uploads/assets'))
   fs.ensureDirSync(path.join(__dirname, '../../public/uploads/tickets'))
@@ -66,7 +68,7 @@ function copyFiles (callback) {
   fs.copy(path.join(__dirname, '../../public/uploads/'), path.join(__dirname, '../../backups/dump/'), callback)
 }
 
-function runBackup (callback) {
+function runBackup(callback) {
   const platform = os.platform()
   winston.info('Starting backup... (' + platform + ')')
 
@@ -121,8 +123,9 @@ function runBackup (callback) {
   })
 }
 
-;(function () {
+; (function () {
   CONNECTION_URI = process.env.MONGOURI
+  FILENAME = process.env.FILENAME || 'trudesk-v' + pkg.version + '-' + moment().format('MMDDYYYY_HHmm') + '.zip'
 
   if (!CONNECTION_URI) return process.send({ error: { message: 'Invalid connection uri' } })
   const options = {
@@ -150,9 +153,7 @@ function runBackup (callback) {
 
         runBackup(function (err) {
           if (err) return process.send({ success: false, error: err })
-          const filename = 'trudesk-' + moment().format('MMDDYYYY_HHmm') + '.zip'
-
-          winston.info('Backup completed successfully: ' + filename)
+          winston.info('Backup completed successfully: ' + FILENAME)
           process.send({ success: true })
         })
       })

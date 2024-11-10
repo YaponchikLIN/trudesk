@@ -12,41 +12,70 @@
  *  Copyright (c) 2014-2019. All rights reserved.
  */
 
-import React, { createRef } from 'react'
-import PropTypes from 'prop-types'
+import React, { createRef } from 'react';
+import PropTypes from 'prop-types';
 
 class PDropdownTrigger extends React.Component {
-  containerRef = createRef()
+  containerRef = createRef();
 
-  constructor (props) {
-    super(props)
+  constructor(props) {
+    super(props);
+    this.state = {
+      isHovered: false,
+      timeoutId: null,
+    };
   }
 
-  componentDidMount () {}
+  componentDidMount() {}
 
-  componentDidUpdate (prevProps, prevState, snapshot) {}
+  componentDidUpdate(prevProps, prevState, snapshot) {}
 
-  componentWillUnmount () {}
+  componentWillUnmount() {}
 
-  onTargetClick (e) {
-    e.preventDefault()
+  onTargetClick(e) {
+    e.preventDefault();
+
     if (this.props.target && this.props.target.current && typeof this.props.target.current.show === 'function') {
-      this.props.target.current.show(this.containerRef.current)
+      this.props.target.current.show(this.containerRef.current);
     }
   }
 
-  render () {
+  handleMouseOver = (e) => {
+    const timeoutId = setTimeout(() => {
+      this.onTargetClick(e);
+    }, 300);
+
+    this.setState({ timeoutId, isHovered: true });
+  };
+
+  handleMouseOut = (e) => {
+    clearTimeout(this.state.timeoutId);
+    this.setState({ isHovered: false });
+  };
+
+  render() {
     return (
-      <div ref={this.containerRef} className={'uk-clearfix'} onClick={e => this.onTargetClick(e)}>
+      <div
+        id="assigneeDropdown"
+        ref={this.containerRef}
+        className={'uk-clearfix'}
+        onClick={(e) => {
+          this.onTargetClick(e);
+        }}
+        onMouseOver={(e) => {
+          this.handleMouseOver(e);
+        }}
+        onMouseOut={(e) => this.handleMouseOut(e)}
+      >
         {this.props.children}
       </div>
-    )
+    );
   }
 }
 
 PDropdownTrigger.propTypes = {
   target: PropTypes.any.isRequired,
-  children: PropTypes.oneOfType([PropTypes.arrayOf(PropTypes.node), PropTypes.node]).isRequired
-}
+  children: PropTypes.oneOfType([PropTypes.arrayOf(PropTypes.node), PropTypes.node]).isRequired,
+};
 
-export default PDropdownTrigger
+export default PDropdownTrigger;

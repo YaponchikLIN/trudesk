@@ -32,26 +32,28 @@ node_modules
 .idea
 *.sassc
 
+**/.vscode/
 #custom
 package-lock.json
 config.json
 config.yml
 import.csv
-/src/mailer/templates/promo/
+src/mailer/templates/promo/
 *.pem
 
-/public/uploads/tickets/
-/public/uploads/users/
+public/uploads/tickets/
+public/uploads/users/
+public/js
 coverage.html
 *.bk
 apidocs
-/docs/*.html
+docs/*.html
 app.css.map
 *.diff
 private/
 .sass-cache/
-/coverage/
-/plugins/
+coverage/
+plugins/
 config.local.json
 public/css/app.min.css
 public/css/app.css
@@ -60,8 +62,11 @@ public/css/app.css
 sonar-project.properties
 .scannerwork/
 
+
 public/uploads/assets/*.*
-/src/backup/bin/
+public/js/*.*
+src/backup/bin/
+src/firebase/serviceAccountKey.json
 backups/
 restores/
 

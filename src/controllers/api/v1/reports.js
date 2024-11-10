@@ -63,7 +63,7 @@ apiReports.generate.ticketsByGroup = function (req, res) {
   ticketSchema.getTicketsWithObject(
     postData.groups,
     {
-      limit: -1,
+      ////limit: -1,
       page: 0,
       filter: {
         date: {
@@ -96,7 +96,7 @@ apiReports.generate.ticketsByTeam = function (req, res) {
     ticketSchema.getTicketsByDepartments(
       departments,
       {
-        limit: -1,
+        //limit: -1,
         page: 0,
         filter: {
           date: {
@@ -177,7 +177,7 @@ apiReports.generate.ticketsByPriority = function (req, res) {
         ticketSchema.getTicketsWithObject(
           grps,
           {
-            limit: -1,
+            //limit: -1,
             page: 0,
             filter: {
               priority: postData.priorities
@@ -262,7 +262,7 @@ apiReports.generate.ticketsByStatus = function (req, res) {
         ticketSchema.getTicketsWithObject(
           grps,
           {
-            limit: -1,
+            //limit: -1,
             page: 0,
             status: postData.status,
             filter: {
@@ -351,7 +351,7 @@ apiReports.generate.ticketsByTags = function (req, res) {
         ticketSchema.getTicketsWithObject(
           grps,
           {
-            limit: -1,
+            //limit: -1,
             page: 0,
             filter: {
               date: {
@@ -439,7 +439,7 @@ apiReports.generate.ticketsByType = function (req, res) {
         ticketSchema.getTicketsWithObject(
           grps,
           {
-            limit: -1,
+            //limit: -1,
             page: 0,
             filter: {
               date: {
@@ -527,7 +527,7 @@ apiReports.generate.ticketsByUser = function (req, res) {
         ticketSchema.getTicketsWithObject(
           grps,
           {
-            limit: -1,
+            //limit: -1,
             page: 0,
             filter: {
               date: {
@@ -559,6 +559,12 @@ apiReports.generate.ticketsByUser = function (req, res) {
 
 apiReports.generate.ticketsByAssignee = function (req, res) {
   const postData = req.body
+  if (postData?.startDate) {
+    postData.startDate = postData.startDate.replace('Z', '+00:00')
+  }
+  if (postData?.endDate) {
+    postData.endDate = postData.endDate.replace('Z', '+00:00')
+  }
   async.waterfall(
     [
       function (done) {
@@ -584,7 +590,7 @@ apiReports.generate.ticketsByAssignee = function (req, res) {
         ticketSchema.getTicketsWithObject(
           grps,
           {
-            limit: -1,
+            // limit: -1,
             page: 0,
             filter: {
               date: {
@@ -614,32 +620,45 @@ apiReports.generate.ticketsByAssignee = function (req, res) {
   )
 }
 
-function processReportData (tickets) {
+statusToName = (status) => {
+  switch (status) {
+    case 0:
+      return 'New';
+    case 1:
+      return 'Open';
+    case 2:
+      return 'Pending';
+    case 3:
+      return 'Closed';
+  }
+};
+
+function processReportData(tickets) {
   const input = []
   for (let i = 0; i < tickets.length; i++) {
     const ticket = tickets[i]
 
     const t = []
     t.push(ticket.uid)
-    t.push(ticket.type.name)
-    t.push(ticket.priority.name)
-    t.push(ticket.statusFormatted)
+    t.push(ticket.type?.name)
+    t.push(ticket.priority?.name)
+    t.push(statusToName(ticket.status))
     t.push(moment(ticket.date).format('MMM DD, YY HH:mm:ss'))
     t.push(ticket.subject)
-    t.push(ticket.owner.fullname)
-    t.push(ticket.group.name)
-    if (ticket.assignee) {
-      t.push(ticket.assignee.fullname)
+    t.push(ticket?.owner?.fullname)
+    t.push(ticket?.group?.name)
+    if (ticket?.assignee) {
+      t.push(ticket.assignee?.fullname)
     } else {
       t.push('')
     }
 
     let tags = ''
-    for (let k = 0; k < ticket.tags.length; k++) {
+    for (let k = 0; k < ticket?.tags?.length; k++) {
       if (k === ticket.tags.length - 1) {
-        tags += ticket.tags[k].name
+        tags += ticket.tags[k]?.name
       } else {
-        tags += ticket.tags[k].name + ';'
+        tags += ticket.tags[k]?.name + ';'
       }
     }
 
@@ -651,7 +670,7 @@ function processReportData (tickets) {
   return input
 }
 
-function processResponse (res, input) {
+function processResponse(res, input) {
   var headers = {
     uid: 'uid',
     type: 'type',
